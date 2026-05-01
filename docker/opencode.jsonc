@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled_providers": ["xqai"],
+  "disabled_providers": ["opencode"],
+  "provider": {
+    "xqai": {
+      "name": "XQAI",
+      "npm": "@ai-sdk/openai-compatible",
+      "models": {
+        "AiLeonFlash": {
+          "name": "AiLeonFlash"
+        },
+        "AiLeon": {
+          "name": "AiLeon"
+        }
+      },
+      "options": {
+        "baseURL": "http://10.56.190.50:11434/v1"
+      }
+    }
+  }
+}
