@@ -6,6 +6,8 @@ Runs [OpenCode](https://opencode.ai) inside a Docker container pre-configured wi
 
 ## Overview
 
+![OpenCode Console](resources/aileon.png)
+
 ```
 soc [path]
   │
@@ -118,6 +120,8 @@ Then open **http://localhost:5000**.
 | **Build Image** | Shown when the `secure-opencode` image is missing; triggers a build |
 
 The session list uses DOM diffing — cards update in-place without flickering. Uptime ticks every 10 seconds independently of the 5-second data refresh.
+
+![Management Web UI](resources/webui.png)
 
 ---
 
