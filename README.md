@@ -82,10 +82,10 @@ soc C:\path\to\project    # Windows
 ### Reconnect to an existing session
 
 ```bash
-docker exec -it -w /workspace <container-name> opencode
+docker exec -it -w /workspace <container-name> opencode --continue
 ```
 
-The connect command is shown on every session card in the web UI with a copy button.
+The connect command is shown on every session card in the web UI with a copy button. The `--continue` flag resumes the last active session — conversation history and context are preserved.
 
 ### Stop a session
 
@@ -116,8 +116,12 @@ Then open **http://localhost:5000**.
 | **Active Sessions** | Card per running container, auto-refreshes every 5 seconds |
 | **Session card** | Container name, status, live uptime, started datetime, container ID, mount path, connect command with copy button |
 | **New Session** | Create a session by entering an absolute directory path |
-| **Stop** | Stops and removes the container |
+| **Stop / Remove** | Stop a running container or permanently remove a stopped one |
 | **Build Image** | Shown when the `secure-opencode` image is missing; triggers a build |
+| **Global Mappings** | Bind-mount additional host directories into every container — changes recreate all containers automatically |
+| **Per-session Mappings** | Extra bind mounts scoped to a single container, shown in the collapsible *Extra Mounts* section of each session card |
+| **Folder Browser** | Native server-side directory picker for selecting host paths — remembers the last visited directory across sessions, walks up to the nearest valid ancestor if a stored path no longer exists |
+| **Session continuity** | OpenCode conversation history and context survive container recreations (mapping changes); each new terminal window resumes the last session via `--continue` |
 
 The session list uses DOM diffing — cards update in-place without flickering. Uptime ticks every 10 seconds independently of the 5-second data refresh.
 
@@ -194,11 +198,23 @@ The management server runs on port `5000` by default (override with `PORT` env v
 | `GET` | `/` | Web UI |
 | `GET` | `/api/status` | Docker connectivity and image state |
 | `POST` | `/api/image/build` | Build the `secure-opencode` image |
+| `GET` | `/api/browse?path=` | List subdirectories at a host path (drive list if empty) |
 | `GET` | `/api/sessions` | List all managed containers |
 | `POST` | `/api/sessions` | Create a new session — body: `{"path": "/abs/path"}` |
-| `DELETE` | `/api/sessions/<id>` | Stop and remove a session |
+| `POST` | `/api/sessions/<id>/start` | Start a stopped container |
+| `POST` | `/api/sessions/<id>/stop` | Stop a running container |
+| `POST` | `/api/sessions/<id>/open` | Launch OpenCode in a new terminal window |
+| `DELETE` | `/api/sessions/<id>` | Remove a session and its state volume |
+| `GET` | `/api/sessions/<id>/mappings` | List per-session extra mounts |
+| `POST` | `/api/sessions/<id>/mappings` | Add a per-session mount — body: `{"host_path": "...", "container_path": "..."}` |
+| `PUT` | `/api/sessions/<id>/mappings/<mid>` | Update a per-session mount |
+| `DELETE` | `/api/sessions/<id>/mappings/<mid>` | Remove a per-session mount |
+| `GET` | `/api/mappings` | List global mappings |
+| `POST` | `/api/mappings` | Add a global mapping — body: `{"host_path": "...", "container_path": "..."}` |
+| `PUT` | `/api/mappings/<mid>` | Update a global mapping |
+| `DELETE` | `/api/mappings/<mid>` | Remove a global mapping |
 
-Sessions are identified by the Docker label `opencode.managed=true`. The `opencode.host_path` label stores the host directory path for container reuse detection.
+Sessions are identified by the Docker label `opencode.managed=true`. The `opencode.host_path` label stores the host directory path for container reuse detection. Each session gets a named Docker volume `<name>-state` mounted at `/root/.local/share/opencode` to persist OpenCode session data across container recreations.
 
 ---
 
@@ -211,7 +227,13 @@ Open a new terminal window. On Unix, run `source ~/.bashrc` or equivalent. Verif
 Requires internet access during build to download OpenCode. Check Docker Desktop is running. Retry via the web UI **Build Image** button.
 
 **OpenCode does not see the project files**
-The container must be started with the directory bind-mounted at `/workspace`. Always use `docker exec -it -w /workspace <name> opencode` (the `-w /workspace` flag is required).
+The container must be started with the directory bind-mounted at `/workspace`. Always use `docker exec -it -w /workspace <name> opencode --continue` (the `-w /workspace` flag sets the working directory; `--continue` resumes the last session).
+
+**OpenCode starts a blank session after a mapping change**
+Mapping changes recreate the container but preserve the OpenCode state volume. If you see a blank session, the container was created before session persistence was introduced — remove it via the web UI and create a new one.
+
+**Duplicate containers after a mapping change on Windows**
+On Windows, Docker's named pipe (error 109 / `GetOverlappedResult`) can drop mid-operation. The server retries with pipe-recovery logic and pre-cleans orphaned temp containers before each recreation. If duplicates appear, remove the extra container manually via `docker rm -f <name>`.
 
 **Port 5000 already in use**
 ```bash
