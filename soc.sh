@@ -33,7 +33,7 @@ echo ""
 
 # ── Ensure Flask management server is running ────────────────────────────────
 ensure_server() {
-    if curl -sf --max-time 2 http://localhost:5000/ >/dev/null 2>&1; then
+    if (echo >/dev/tcp/127.0.0.1/5000) 2>/dev/null; then
         return 0
     fi
     echo "[soc] Management server not running. Starting it..."
@@ -68,49 +68,73 @@ if ! docker image inspect "$IMAGE" &>/dev/null; then
     echo ""
 fi
 
-# Check for existing running container with the same host path label
+# ── Check for existing container (running or stopped) ────────────────────────
 EXISTING=""
+EXISTING_STATUS=""
 while IFS= read -r cname; do
-    if [ -z "$cname" ]; then continue; fi
+    [ -z "$cname" ] && continue
     label_path="$(docker inspect "$cname" --format '{{index .Config.Labels "opencode.host_path"}}' 2>/dev/null)"
     if [ "$label_path" = "$ROC_DIR" ]; then
         EXISTING="$cname"
+        EXISTING_STATUS="$(docker inspect "$cname" --format '{{.State.Status}}' 2>/dev/null)"
         break
     fi
-done < <(docker ps --filter "label=opencode.managed=true" --format "{{.Names}}" 2>/dev/null)
+done < <(docker ps -a --filter "label=opencode.managed=true" --format "{{.Names}}" 2>/dev/null)
 
 open_ui() {
     if command -v xdg-open &>/dev/null; then xdg-open "http://localhost:5000"
     elif command -v open &>/dev/null; then open "http://localhost:5000"
-    elif command -v start &>/dev/null; then start "http://localhost:5000"
     fi
 }
 
 if [ -n "$EXISTING" ]; then
-    echo "[soc] Reusing existing session: $EXISTING"
+    if [ "$EXISTING_STATUS" = "exited" ]; then
+        echo "[soc] Restarting stopped session: $EXISTING"
+        docker start "$EXISTING" >/dev/null
+    else
+        echo "[soc] Reusing existing session: $EXISTING"
+    fi
     echo "[soc] Type 'exit' in OpenCode to detach. Container stays running."
     echo ""
     open_ui
     docker exec -it -w /workspace "$EXISTING" opencode
     CNAME="$EXISTING"
 else
-    # Generate container name from directory base name
-    DIRNAME="$(basename "$ROC_DIR" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')"
-    SUFFIX="$(cat /dev/urandom 2>/dev/null | tr -dc 'a-z0-9' | head -c 5 || printf '%05d' "$$")"
-    CNAME="soc-${DIRNAME}-${SUFFIX}"
+    # ── Create new session via Flask API (applies global + extra mappings) ────
+    if [ -f "$SCRIPT_DIR/.venv/Scripts/python.exe" ]; then
+        VENV_PY="$SCRIPT_DIR/.venv/Scripts/python.exe"
+    elif [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
+        VENV_PY="$SCRIPT_DIR/.venv/bin/python"
+    else
+        VENV_PY="python3"
+    fi
 
-    echo "[soc] Starting session : $CNAME"
+    CNAME=$("$VENV_PY" - "$ROC_DIR" <<'PYEOF'
+import json, sys, urllib.request
+path = sys.argv[1]
+data = json.dumps({"path": path}).encode()
+req = urllib.request.Request(
+    "http://localhost:5000/api/sessions",
+    data=data,
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+try:
+    resp = json.loads(urllib.request.urlopen(req, timeout=10).read())
+    print(resp.get("name", ""))
+except Exception as e:
+    print(f"ERROR: {e}", file=sys.stderr)
+PYEOF
+)
+
+    if [ -z "$CNAME" ] || [[ "$CNAME" == ERROR:* ]]; then
+        echo "[soc] ERROR: Failed to create session. Is the management server running?"
+        exit 1
+    fi
+
+    echo "[soc] Started session  : $CNAME"
     echo "[soc] Type 'exit' in OpenCode to detach. Container stays running."
-    echo "[soc] Manage sessions  : http://localhost:5000"
     echo ""
-
-    docker run -d \
-        -v "$ROC_DIR:/workspace" \
-        --label opencode.managed=true \
-        --label "opencode.host_path=$ROC_DIR" \
-        --name "$CNAME" \
-        "$IMAGE" sleep infinity >/dev/null
-
     open_ui
     docker exec -it -w /workspace "$CNAME" opencode
 fi
@@ -118,6 +142,5 @@ fi
 echo ""
 echo "[soc] OpenCode exited. Session container is still running."
 echo "[soc] Reconnect : docker exec -it -w /workspace $CNAME opencode"
-echo "[soc] Stop      : docker stop $CNAME && docker rm $CNAME"
 echo "[soc] Web UI    : http://localhost:5000"
 echo ""

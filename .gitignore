@@ -26,3 +26,6 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+.claude/settings.local.json
+docker/container_mappings.json
+docker/mappings.json

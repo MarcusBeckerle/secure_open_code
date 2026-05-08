@@ -21,6 +21,8 @@
             --danger:      #f85149;
             --danger-dim:  #da3633;
             --warn:        #d29922;
+            --blue:        #58a6ff;
+            --blue-dim:    #1f6feb;
             --radius:      8px;
             --radius-sm:   4px;
             --shadow:      0 1px 3px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.35);
@@ -128,13 +130,57 @@
         .btn:active { transform: scale(.98); }
         .btn-primary { background: var(--accent-dim); border-color: transparent; color: #fff; }
         .btn-primary:hover { background: #2ea043; }
+        .btn-blue   { background: var(--blue-dim); border-color: transparent; color: #fff; }
+        .btn-blue:hover { background: #388bfd; }
         .btn-danger  { background: transparent; border-color: var(--border); color: var(--danger); }
         .btn-danger:hover { background: rgba(248,81,73,.1); border-color: var(--danger-dim); }
         .btn-ghost   { background: transparent; border-color: transparent; color: var(--text-2); }
         .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
         .btn-sm  { padding: 4px 10px; font-size: 12px; }
+        .btn-xs  { padding: 2px 8px; font-size: 11px; }
         .btn-ico { padding: 5px; width: 28px; height: 28px; justify-content: center; }
         .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* ── Global Mappings Panel ── */
+        .map-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .map-panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-sub);
+            background: rgba(255,255,255,.015);
+        }
+        .map-panel-title {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 14px; font-weight: 600;
+        }
+        .map-panel-sub {
+            font-size: 11px; color: var(--text-dim); font-weight: 400;
+            margin-top: 2px;
+        }
+        .map-list { padding: 0; }
+        .map-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 15px;
+            border-bottom: 1px solid var(--border-sub);
+            font-size: 12.5px;
+            transition: background .1s;
+        }
+        .map-item:last-child { border-bottom: none; }
+        .map-item:hover { background: rgba(255,255,255,.02); }
+        .map-host { font-family: var(--mono); color: var(--text); word-break: break-all; flex: 1; }
+        .map-arrow { color: var(--text-dim); flex-shrink: 0; font-size: 11px; }
+        .map-cont  { font-family: var(--mono); color: var(--blue); flex-shrink: 0; }
+        .map-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .map-empty {
+            padding: 18px 15px; font-size: 12.5px; color: var(--text-dim);
+            text-align: center;
+        }
 
         /* ── Session cards ── */
         .sessions { display: flex; flex-direction: column; gap: 10px; }
@@ -154,7 +200,6 @@
         }
         .card-new { animation: cardIn .2s ease forwards; }
 
-        /* card header */
         .card-head {
             display: flex; align-items: center; justify-content: space-between;
             padding: 12px 15px;
@@ -166,9 +211,12 @@
             padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;
             background: rgba(63,185,80,.12); border: 1px solid rgba(63,185,80,.25); color: var(--accent);
         }
+        .status-pill-stopped {
+            background: rgba(139,148,158,.12); border-color: rgba(139,148,158,.25); color: var(--text-2);
+        }
+        .card-stopped { opacity: .72; }
         .card-actions { display: flex; align-items: center; gap: 8px; }
 
-        /* uptime badge in header */
         .uptime-tag {
             font-size: 11px; color: var(--text-2);
             background: var(--surface-2); border: 1px solid var(--border-sub);
@@ -176,7 +224,6 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* meta info row */
         .card-meta {
             display: flex; align-items: center; gap: 24px;
             padding: 9px 15px;
@@ -191,7 +238,6 @@
         .meta-val { font-size: 12px; color: var(--text-2); }
         .meta-mono { font-family: var(--mono); font-size: 11.5px; }
 
-        /* card body */
         .card-body { padding: 13px 15px; }
         .mounts { display: flex; flex-direction: column; gap: 5px; margin-bottom: 11px; }
         .mount  { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
@@ -210,6 +256,33 @@
         }
         .cmd-prefix { color: var(--text-dim); margin-right: 5px; }
 
+        /* ── Per-container extra mounts (collapsible) ── */
+        .extra-section {
+            border-top: 1px solid var(--border-sub);
+        }
+        .extra-toggle {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 15px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 12px; color: var(--text-2);
+            transition: background .1s, color .1s;
+        }
+        .extra-toggle:hover { background: rgba(255,255,255,.02); color: var(--text); }
+        .extra-toggle svg { transition: transform .2s; flex-shrink: 0; }
+        .extra-toggle.open svg { transform: rotate(90deg); }
+        .extra-label { flex: 1; display: flex; align-items: center; gap: 6px; }
+        .extra-content { display: none; padding: 6px 15px 10px; }
+        .extra-content.open { display: block; }
+        .extra-map-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border-sub);
+            font-size: 12px;
+        }
+        .extra-map-item:last-child { border-bottom: none; }
+        .extra-empty { font-size: 12px; color: var(--text-dim); padding: 4px 0 6px; }
+
         /* ── States ── */
         .empty { text-align: center; padding: 60px 24px; color: var(--text-2); }
         .empty-icon { opacity: .35; margin-bottom: 16px; }
@@ -222,7 +295,7 @@
             border-radius: var(--radius); padding: 14px; color: var(--danger); font-size: 13px;
         }
 
-        /* ── Modal ── */
+        /* ── Modals (shared) ── */
         .overlay {
             position: fixed; inset: 0; z-index: 200;
             background: rgba(1,4,9,.82); backdrop-filter: blur(5px);
@@ -233,7 +306,7 @@
         .modal {
             background: var(--surface); border: 1px solid var(--border);
             border-radius: var(--radius); padding: 22px 24px;
-            width: 100%; max-width: 460px;
+            width: 100%; max-width: 480px;
             box-shadow: 0 8px 32px rgba(0,0,0,.7);
             animation: scaleIn .15s ease;
         }
@@ -242,7 +315,7 @@
             font-size: 15px; font-weight: 600;
             display: flex; align-items: center; gap: 8px; margin-bottom: 20px;
         }
-        .field { margin-bottom: 6px; }
+        .field { margin-bottom: 14px; }
         .field label {
             display: block; font-size: 11px; font-weight: 600;
             text-transform: uppercase; letter-spacing: .5px;
@@ -255,6 +328,8 @@
             transition: border-color .14s, box-shadow .14s;
         }
         .field input:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgba(63,185,80,.1); }
+        .field-row { display: flex; gap: 8px; align-items: flex-end; }
+        .field-row .field { flex: 1; margin-bottom: 0; }
         .hint { font-size: 12px; color: var(--text-2); margin-top: 5px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
         .result-box {
@@ -264,6 +339,17 @@
         .result-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
         .result-cmd { font-family: var(--mono); font-size: 13px; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .result-cmd span { word-break: break-all; }
+
+        /* ── Folder browser ── */
+        .browse-entry {
+            display: flex; align-items: center; gap: 9px;
+            padding: 8px 14px; cursor: pointer;
+            border-bottom: 1px solid var(--border-sub);
+            transition: background .1s; user-select: none;
+        }
+        .browse-entry:last-child { border-bottom: none; }
+        .browse-entry:hover  { background: rgba(255,255,255,.04); }
+        .browse-entry:active { background: rgba(255,255,255,.07); }
 
         /* ── Toasts ── */
         .toast-wrap { position: fixed; bottom: 22px; right: 22px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
@@ -311,12 +397,41 @@
         </button>
     </div>
 
+    <!-- ── Global Mappings ── -->
+    <div class="map-panel">
+        <div class="map-panel-head">
+            <div>
+                <div class="map-panel-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue)">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    Global Mappings
+                    <span class="count" id="gmap-count">0</span>
+                </div>
+                <div class="map-panel-sub">Apply to all containers &mdash; changes recreate existing containers</div>
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="openMappingModal('global')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add Mapping
+            </button>
+        </div>
+        <div class="map-list" id="gmap-list">
+            <div class="map-empty">No global mappings defined.</div>
+        </div>
+    </div>
+
+    <!-- ── Sessions ── -->
     <div class="sec-header">
         <div class="sec-title">
             Active Sessions
             <span class="count" id="s-count">0</span>
         </div>
         <div class="sec-right">
+            <button class="btn btn-ghost btn-sm" onclick="setAllExtra(false)">Collapse All</button>
+            <button class="btn btn-ghost btn-sm" onclick="setAllExtra(true)">Expand All</button>
             <div class="last-updated">
                 <svg id="ref-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="1 4 1 10 7 10"/>
@@ -333,13 +448,13 @@
         </div>
     </div>
 
-    <!-- s-container holds either #sessions-grid or #empty-state, never both -->
     <div id="s-container">
         <div class="loading">Loading sessions…</div>
     </div>
 
 </main>
 
+<!-- ── New Session Modal ── -->
 <div class="overlay" id="overlay" style="display:none" onclick="overlayClick(event)">
     <div class="modal">
         <div class="modal-title">
@@ -352,12 +467,101 @@
             <div class="field">
                 <label>Directory Path</label>
                 <input id="path-in" type="text" placeholder="C:\Users\yourname\projects\myapp" autocomplete="off" spellcheck="false">
-                <div class="hint">Absolute path to the project directory to mount in the container.</div>
             </div>
+            <div class="hint">Absolute path to the project directory mounted at <span class="mono-inline">/workspace</span>.</div>
         </div>
         <div class="modal-footer">
             <button class="btn" onclick="closeModal()">Cancel</button>
             <button class="btn btn-primary" id="start-btn" onclick="createSession()">Start Session</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Mapping Edit Modal ── -->
+<div class="overlay" id="map-overlay" style="display:none" onclick="mapOverlayClick(event)">
+    <div class="modal" id="map-modal">
+        <div class="modal-title" id="map-modal-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span id="map-modal-title-text">Add Mapping</span>
+        </div>
+        <div style="font-size:12px;color:var(--warn);background:rgba(210,153,34,.07);border:1px solid rgba(210,153,34,.22);border-radius:var(--radius-sm);padding:8px 11px;margin-bottom:14px;display:flex;gap:7px;align-items:flex-start">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Saving recreates affected containers — open OpenCode sessions will disconnect.
+        </div>
+        <div class="field">
+            <label>Host Directory</label>
+            <div style="display:flex;gap:6px">
+                <input id="map-host" type="text" placeholder="C:\path\to\directory" autocomplete="off" spellcheck="false"
+                       oninput="suggestContainerPath()" style="flex:1;min-width:0">
+                <button class="btn btn-sm" type="button" onclick="browseHostDir()" style="flex-shrink:0" title="Open folder picker">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Browse
+                </button>
+            </div>
+        </div>
+        <div class="field">
+            <label>Container Path</label>
+            <input id="map-cont" type="text" placeholder="/mnt/foldername" autocomplete="off" spellcheck="false">
+            <div class="hint">Mount point inside the container, e.g. <span class="mono-inline">/mnt/shared</span></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeMappingModal()">Cancel</button>
+            <button class="btn btn-blue" id="map-save-btn" onclick="saveMapping()">Save</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ── Folder Browser Modal ── -->
+<div class="overlay" id="browse-overlay" style="display:none" onclick="browseOverlayClick(event)">
+    <div class="modal" style="max-width:540px;padding:0;display:flex;flex-direction:column;max-height:72vh;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:9px;padding:15px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn)">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span style="font-size:15px;font-weight:600">Select Folder</span>
+        </div>
+        <div id="browse-path-bar" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:6px 14px;background:var(--surface-2);border-bottom:1px solid var(--border);flex-shrink:0;min-height:36px"></div>
+        <div id="browse-entries" style="overflow-y:auto;flex:1;min-height:100px"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--border);background:rgba(255,255,255,.015);flex-shrink:0">
+            <span id="browse-selected-text" style="font-family:var(--mono);font-size:11.5px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0"></span>
+            <div style="display:flex;gap:8px;flex-shrink:0">
+                <button class="btn" onclick="closeBrowseModal()">Cancel</button>
+                <button class="btn btn-primary" id="browse-confirm-btn" onclick="confirmBrowse()" disabled>Select Folder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Confirm Delete Modal ── -->
+<div class="overlay" id="confirm-overlay" style="display:none" onclick="confirmOverlayClick(event)">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-title" id="confirm-title" style="color:var(--danger)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+            <span id="confirm-title-text">Delete Mapping</span>
+        </div>
+        <p id="confirm-msg" style="font-size:13px;color:var(--text-2);margin-bottom:12px"></p>
+        <div style="font-size:12px;color:var(--warn);background:rgba(210,153,34,.07);border:1px solid rgba(210,153,34,.22);border-radius:var(--radius-sm);padding:8px 11px;display:flex;gap:7px;align-items:flex-start">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="confirm-warn-text"></span>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="resolveConfirm(false)">Cancel</button>
+            <button class="btn btn-danger" onclick="resolveConfirm(true)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+                Delete
+            </button>
         </div>
     </div>
 </div>
@@ -368,13 +572,18 @@
     // ── API ───────────────────────────────────────────────────────────────────
     const api = {
         get:  url      => fetch(url).then(r => r.json()),
-        post: (url, b) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()),
+        post: (url, b) => fetch(url, { method: 'POST',   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()),
+        put:  (url, b) => fetch(url, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()),
         del:  url      => fetch(url, { method: 'DELETE' }).then(r => r.json()),
     };
 
     // ── State ─────────────────────────────────────────────────────────────────
     let sessions = [];
+    let globalMappings = [];
     let firstRender = true;
+
+    // Mapping modal state
+    let mapCtx = { mode: 'global', editId: null, sessionName: null };
 
     // ── Time helpers ──────────────────────────────────────────────────────────
     function formatUptime(iso) {
@@ -393,7 +602,6 @@
         });
     }
 
-    // Tick uptime badges in-place — no DOM re-render, no flicker
     function tickUptimes() {
         document.querySelectorAll('.js-uptime[data-created]').forEach(el => {
             el.textContent = formatUptime(el.dataset.created);
@@ -432,7 +640,50 @@
         }
     }
 
-    // ── Session rendering (DOM-diffing, no full re-render) ────────────────────
+    // ── Global mappings ───────────────────────────────────────────────────────
+    async function refreshGlobalMappings() {
+        try {
+            const data = await api.get('/api/mappings');
+            globalMappings = data;
+            renderGlobalMappings(data);
+        } catch { /* silent */ }
+    }
+
+    function renderGlobalMappings(list) {
+        const el = document.getElementById('gmap-list');
+        document.getElementById('gmap-count').textContent = list.length;
+        if (!list.length) {
+            el.innerHTML = '<div class="map-empty">No global mappings defined.</div>';
+            return;
+        }
+        el.innerHTML = list.map(m => `
+            <div class="map-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-dim);flex-shrink:0">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span class="map-host">${esc(m.host_path)}</span>
+                <span class="map-arrow">&#8594;</span>
+                <span class="map-cont">${esc(m.container_path)}</span>
+                <div class="map-actions">
+                    <button class="btn btn-ghost btn-xs" onclick="openMappingModalById('global',null,'${esc(m.id)}')" title="Edit">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-ghost btn-xs" style="color:var(--danger)" onclick="deleteGlobalMapping('${esc(m.id)}')" title="Delete">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/>
+                            <path d="M9 6V4h6v2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>`).join('');
+    }
+
+    // ── Session rendering (DOM-diffing keyed by name) ─────────────────────────
     async function refreshSessions() {
         document.getElementById('ref-icon').classList.add('spinning');
         try {
@@ -443,7 +694,6 @@
             document.getElementById('s-count').textContent = data.length;
             document.getElementById('s-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
         } catch (e) {
-            // Only replace content if we're still on the loading screen
             if (firstRender) {
                 document.getElementById('s-container').innerHTML =
                     `<div class="err-box">Failed to load sessions: ${esc(e.message)}</div>`;
@@ -457,7 +707,6 @@
     function patchSessions(list) {
         const container = document.getElementById('s-container');
 
-        // ── Empty state ───────────────────────────────────────────────────────
         if (!list.length) {
             const grid = document.getElementById('sessions-grid');
             if (grid) grid.remove();
@@ -467,7 +716,6 @@
             return;
         }
 
-        // Remove empty / loading placeholder if present
         const empty = document.getElementById('empty-state');
         if (empty) empty.remove();
         if (firstRender || !document.getElementById('sessions-grid')) {
@@ -475,25 +723,23 @@
         }
 
         const grid = document.getElementById('sessions-grid');
-        const incoming = new Map(list.map(s => [s.id, s]));
+        const incoming = new Map(list.map(s => [s.name, s]));
 
-        // Remove cards no longer in the list
-        [...grid.querySelectorAll('.card[data-id]')].forEach(card => {
-            if (!incoming.has(card.dataset.id)) {
+        [...grid.querySelectorAll('.card[data-name]')].forEach(card => {
+            if (!incoming.has(card.dataset.name)) {
                 card.style.opacity = '0';
                 card.style.transform = 'translateY(-4px)';
                 setTimeout(() => card.remove(), 200);
             }
         });
 
-        // Add new cards / surgically update existing ones
         const existingCards = new Map(
-            [...grid.querySelectorAll('.card[data-id]')].map(el => [el.dataset.id, el])
+            [...grid.querySelectorAll('.card[data-name]')].map(el => [el.dataset.name, el])
         );
 
         list.forEach(s => {
-            if (existingCards.has(s.id)) {
-                updateCard(existingCards.get(s.id), s);
+            if (existingCards.has(s.name)) {
+                updateCard(existingCards.get(s.name), s);
             } else {
                 const wrap = document.createElement('div');
                 wrap.innerHTML = cardHtml(s);
@@ -504,11 +750,15 @@
         });
     }
 
-    // Update only the mutable parts of an existing card — status pill, uptime
     function updateCard(card, s) {
-        const pill = card.querySelector('.status-pill');
-        if (pill && pill.textContent !== s.status) pill.textContent = s.status;
-        // uptime is updated by tickUptimes() independently
+        const stopped = s.status !== 'running';
+        card.classList.toggle('card-stopped', stopped);
+        const wasOpen = card.querySelector('.extra-content')?.classList.contains('open');
+        card.innerHTML = cardBodyHtml(s);
+        if (wasOpen) {
+            card.querySelector('.extra-toggle')?.classList.add('open');
+            card.querySelector('.extra-content')?.classList.add('open');
+        }
     }
 
     function emptyStateHtml() {
@@ -536,40 +786,106 @@
         </div>`;
     }
 
-    function cardHtml(s) {
-        const mounts = s.mounts.map(m => `
+    function cardBodyHtml(s) {
+        const running = s.status === 'running';
+        const nameJs = s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+        const mounts = s.mounts.map(m => {
+            const ws = m.container === '/workspace';
+            return `
             <div class="mount">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-dim);flex-shrink:0">
+                     stroke-linecap="round" stroke-linejoin="round"
+                     style="color:${ws ? 'var(--accent)' : 'var(--text-dim)'};flex-shrink:0">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                 </svg>
-                <span class="m-host">${esc(m.host)}</span>
+                <span class="m-host" style="${ws ? 'color:var(--text)' : ''}">${esc(m.host)}</span>
                 <span class="m-arrow">&#8594;</span>
-                <span class="m-cont">${esc(m.container)}</span>
-            </div>`).join('');
+                <span class="m-cont" style="color:${ws ? 'var(--accent)' : 'var(--text-2)'}">${esc(m.container)}</span>
+            </div>`;
+        }).join('');
 
-        const cmd = `docker exec -it ${s.name} opencode`;
+        const extra = s.extra_mappings || [];
+        const extraCount = extra.length;
+
+        const extraItems = extra.length
+            ? extra.map(m => `<div class="extra-map-item">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-dim);flex-shrink:0">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span class="map-host" style="font-size:12px">${esc(m.host_path)}</span>
+                    <span class="map-arrow">&#8594;</span>
+                    <span class="map-cont" style="font-size:12px">${esc(m.container_path)}</span>
+                    <div class="map-actions">
+                        <button class="btn btn-ghost btn-xs" onclick="openMappingModalById('container','${nameJs}','${esc(m.id)}')" title="Edit">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        <button class="btn btn-ghost btn-xs" style="color:var(--danger)"
+                                onclick="deleteSessionMapping('${nameJs}','${esc(m.id)}')" title="Delete">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>`).join('')
+            : '<div class="extra-empty">No extra mounts for this container.</div>';
+
+        const cmd = `docker exec -it -w /workspace ${s.name} opencode --continue`;
         const cmdEsc = esc(cmd);
         const cmdJs  = cmd.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         const started = s.created ? formatDate(s.created) : '–';
 
+        const dotHtml = running
+            ? '<span class="dot dot-g dot-pulse"></span>'
+            : '<span class="dot dot-x"></span>';
+        const pillClass = running ? 'status-pill' : 'status-pill status-pill-stopped';
+
+        const actionBtns = running
+            ? `<button class="btn btn-ghost btn-sm" onclick="openSession('${nameJs}',this)" title="Open OpenCode in a terminal window">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+                    </svg>
+                    Open
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="stopSession('${nameJs}',this)">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    </svg>
+                    Stop
+                </button>`
+            : `<button class="btn btn-sm" onclick="startSession('${nameJs}',this)">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    Start
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="removeSession('${nameJs}',this)">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                    </svg>
+                    Remove
+                </button>`;
+
         return `
-        <div class="card" id="card-${s.id}" data-id="${s.id}">
             <div class="card-head">
                 <div class="card-name">
-                    <span class="dot dot-g dot-pulse"></span>
+                    ${dotHtml}
                     <span class="c-name">${esc(s.name)}</span>
-                    <span class="status-pill">${esc(s.status)}</span>
+                    <span class="${pillClass}">${esc(s.status)}</span>
                 </div>
                 <div class="card-actions">
                     <span class="uptime-tag js-uptime" data-created="${esc(s.created)}">${s.created ? formatUptime(s.created) : '–'}</span>
-                    <button class="btn btn-danger btn-sm" onclick="stopSession('${s.id}','${esc(s.name)}',this)">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                             stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        </svg>
-                        Stop
-                    </button>
+                    ${actionBtns}
                 </div>
             </div>
             <div class="card-meta">
@@ -595,35 +911,124 @@
                     </button>
                 </div>
             </div>
+            <div class="extra-section">
+                <div class="extra-toggle" onclick="toggleExtra(this)">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                    <span class="extra-label">
+                        Extra Mounts
+                        <span class="count">${extraCount}</span>
+                    </span>
+                    <button class="btn btn-ghost btn-xs" style="color:var(--blue)"
+                            onclick="event.stopPropagation(); openMappingModal('container','${nameJs}')">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Add
+                    </button>
+                </div>
+                <div class="extra-content">
+                    ${extraItems}
+                </div>
+            </div>`;
+    }
+
+    function cardHtml(s) {
+        const stopped = s.status !== 'running';
+        return `
+        <div class="card${stopped ? ' card-stopped' : ''}" id="card-${esc(s.name)}" data-name="${esc(s.name)}" data-id="${s.id}">
+            ${cardBodyHtml(s)}
         </div>`;
     }
 
-    // ── Actions ───────────────────────────────────────────────────────────────
-    async function stopSession(id, name, btn) {
-        if (!confirm(`Stop session "${name}"?\nThe container will be removed.`)) return;
+    // ── Expand / collapse all extra sections ──────────────────────────────────
+    function setAllExtra(open) {
+        document.querySelectorAll('.extra-toggle').forEach(toggle => {
+            const content = toggle.nextElementSibling;
+            if (open) {
+                toggle.classList.add('open');
+                content.classList.add('open');
+            } else {
+                toggle.classList.remove('open');
+                content.classList.remove('open');
+            }
+        });
+    }
+
+    function toggleExtra(toggle) {
+        const content = toggle.nextElementSibling;
+        toggle.classList.toggle('open');
+        content.classList.toggle('open');
+    }
+
+    // ── Session actions ───────────────────────────────────────────────────────
+    async function stopSession(name, btn) {
         btn.disabled = true;
         btn.textContent = 'Stopping…';
         try {
-            const r = await api.del(`/api/sessions/${id}`);
+            const r = await api.post(`/api/sessions/${encodeURIComponent(name)}/stop`, {});
             if (r.error) throw new Error(r.error);
-            const card = document.getElementById(`card-${id}`);
-            if (card) {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(-4px)';
-                setTimeout(() => {
-                    card.remove();
-                    sessions = sessions.filter(s => s.id !== id);
-                    document.getElementById('s-count').textContent = sessions.length;
-                    if (!sessions.length) patchSessions([]);
-                }, 200);
-            }
             toast('Session stopped.', true);
+            refreshSessions();
         } catch (e) {
             toast('Stop failed: ' + e.message, false);
             btn.disabled = false;
             btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>Stop`;
+        }
+    }
+
+    async function startSession(name, btn) {
+        btn.disabled = true;
+        btn.textContent = 'Starting…';
+        try {
+            const r = await api.post(`/api/sessions/${encodeURIComponent(name)}/start`, {});
+            if (r.error) throw new Error(r.error);
+            toast('Session started.', true);
+            refreshSessions();
+        } catch (e) {
+            toast('Start failed: ' + e.message, false);
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/></svg>Start`;
+        }
+    }
+
+    async function removeSession(name, btn) {
+        if (!confirm(`Remove session "${name}"?\nThe container will be permanently deleted.`)) return;
+        btn.disabled = true;
+        btn.textContent = 'Removing…';
+        try {
+            const r = await api.del(`/api/sessions/${encodeURIComponent(name)}`);
+            if (r.error) throw new Error(r.error);
+            toast('Session removed.', true);
+            refreshSessions();
+        } catch (e) {
+            toast('Remove failed: ' + e.message, false);
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Remove`;
+        }
+    }
+
+    async function openSession(name, btn) {
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        try {
+            const r = await api.post(`/api/sessions/${encodeURIComponent(name)}/open`, {});
+            if (r.error) throw new Error(r.error);
+            toast('OpenCode launched in new terminal.', true);
+        } catch (e) {
+            toast('Launch failed: ' + e.message, false);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
         }
     }
 
@@ -671,7 +1076,7 @@
                     </div>
                 </div>`;
             btn.style.display = 'none';
-            document.querySelector('.modal-footer .btn').textContent = 'Close';
+            document.querySelector('#overlay .modal-footer .btn').textContent = 'Close';
             toast('Session started: ' + r.name, true);
             refreshSessions();
         } catch (e) {
@@ -680,28 +1085,305 @@
         }
     }
 
-    // ── Modal ─────────────────────────────────────────────────────────────────
+    // ── Mapping modal ─────────────────────────────────────────────────────────
+    function openMappingModalById(mode, sessionName, mappingId) {
+        let existing = null;
+        if (mode === 'global') {
+            existing = globalMappings.find(m => m.id === mappingId) || null;
+        } else {
+            const session = sessions.find(s => s.name === sessionName);
+            existing = session?.extra_mappings?.find(m => m.id === mappingId) || null;
+        }
+        openMappingModal(mode, sessionName, null, existing);
+    }
+
+    function openMappingModal(mode, sessionName = null, _unused = null, existing = null) {
+        mapCtx = { mode, editId: existing?.id || null, sessionName };
+
+        const isEdit = !!existing;
+        const scopeLabel = mode === 'global' ? 'Global' : `Container: ${sessionName}`;
+        document.getElementById('map-modal-title-text').textContent = `${isEdit ? 'Edit' : 'Add'} Mapping — ${scopeLabel}`;
+        document.getElementById('map-host').value = existing?.host_path || '';
+        document.getElementById('map-cont').value = existing?.container_path || '';
+        document.getElementById('map-save-btn').textContent = isEdit ? 'Save Changes' : 'Save';
+        document.getElementById('map-overlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('map-host').focus(), 40);
+    }
+
+    function closeMappingModal() {
+        document.getElementById('map-overlay').style.display = 'none';
+    }
+
+    // ── Folder browser ───────────────────────────────────────────────────────
+    let _browseCurrent = '';
+
+    function browseHostDir() {
+        openBrowseModal();
+    }
+
+    async function openBrowseModal() {
+        document.getElementById('browse-overlay').style.display = 'flex';
+        document.getElementById('browse-entries').innerHTML =
+            '<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px">Loading…</div>';
+        let path = localStorage.getItem('browse-last-path') || '';
+        if (path) path = await findValidAncestor(path);
+        browseNavigate(path);
+    }
+
+    function parentPath(path) {
+        const p = path.replace(/[\\\/]+$/, '');
+        const i = Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/'));
+        if (i < 0) return '';
+        if (i === 0) return '/';
+        const up = p.slice(0, i);
+        return /^[A-Za-z]:$/.test(up) ? up + '\\' : up;
+    }
+
+    async function findValidAncestor(path) {
+        while (path) {
+            try {
+                const data = await api.get('/api/browse?path=' + encodeURIComponent(path));
+                if (!data.error) return path;
+            } catch (e) { /* continue */ }
+            path = parentPath(path);
+        }
+        return '';
+    }
+
+    function closeBrowseModal() {
+        document.getElementById('browse-overlay').style.display = 'none';
+    }
+
+    function browseOverlayClick(e) {
+        if (e.target === document.getElementById('browse-overlay')) closeBrowseModal();
+    }
+
+    function confirmBrowse() {
+        if (!_browseCurrent) return;
+        document.getElementById('map-host').value = _browseCurrent;
+        suggestContainerPath();
+        closeBrowseModal();
+    }
+
+    function buildBreadcrumbs(path) {
+        if (!path) return [{label: 'Drives', path: ''}];
+        const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+        const crumbs = [{label: 'Drives', path: ''}];
+        let acc = '';
+        parts.forEach((part, i) => {
+            acc = (i === 0 && part.endsWith(':')) ? part + '\\' : acc.replace(/[\\\/]$/, '') + '\\' + part;
+            crumbs.push({label: part, path: acc});
+        });
+        return crumbs;
+    }
+
+    async function browseNavigate(path) {
+        const entriesEl = document.getElementById('browse-entries');
+        entriesEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px">Loading…</div>';
+        try {
+            const data = await api.get('/api/browse?path=' + encodeURIComponent(path));
+            if (data.error) throw new Error(data.error);
+            _browseCurrent = data.path;
+            if (data.path) localStorage.setItem('browse-last-path', data.path);
+
+            const crumbs = buildBreadcrumbs(data.path);
+            document.getElementById('browse-path-bar').innerHTML = crumbs.map((c, i) => {
+                const isLast = i === crumbs.length - 1;
+                const pJs = c.path.replace(/\\/g, '\\\\');
+                return isLast
+                    ? `<span style="color:var(--text);font-size:12px;font-weight:500">${esc(c.label)}</span>`
+                    : `<button class="btn btn-ghost btn-xs" style="padding:2px 6px;font-size:12px" onclick="browseNavigate('${pJs}')">${esc(c.label)}</button><span style="color:var(--text-dim);font-size:11px;line-height:1">›</span>`;
+            }).join('');
+
+            if (!data.entries.length) {
+                entriesEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px">No subfolders</div>';
+            } else {
+                entriesEl.innerHTML = data.entries.map(e => {
+                    const pJs = e.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `<div class="browse-entry" onclick="browseNavigate('${pJs}')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn);flex-shrink:0">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12.5px">${esc(e.name)}</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-dim);flex-shrink:0">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </div>`;
+                }).join('');
+            }
+
+            document.getElementById('browse-selected-text').textContent = data.path || '';
+            document.getElementById('browse-confirm-btn').disabled = !data.path;
+        } catch (e) {
+            entriesEl.innerHTML = `<div style="padding:20px;color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
+        }
+    }
+
+    function mapOverlayClick(e) {
+        if (e.target === document.getElementById('map-overlay')) closeMappingModal();
+    }
+
+    function suggestContainerPath() {
+        const host = document.getElementById('map-host').value.trim();
+        const contEl = document.getElementById('map-cont');
+        if (!contEl.value || contEl.dataset.auto === '1') {
+            const parts = host.replace(/\\/g, '/').split('/').filter(Boolean);
+            const name = parts.pop() || '';
+            if (name) {
+                contEl.value = `/mnt/${name.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}`;
+                contEl.dataset.auto = '1';
+            }
+        }
+    }
+
+    document.getElementById('map-cont').addEventListener('input', function() {
+        this.dataset.auto = '0';
+    });
+
+    async function saveMapping() {
+        const host_path = document.getElementById('map-host').value.trim();
+        const container_path = document.getElementById('map-cont').value.trim();
+        if (!host_path || !container_path) { toast('Both paths are required.', false); return; }
+
+        const btn = document.getElementById('map-save-btn');
+        btn.disabled = true; btn.textContent = 'Saving…';
+
+        try {
+            let r;
+            if (mapCtx.mode === 'global') {
+                if (mapCtx.editId) {
+                    r = await api.put(`/api/mappings/${mapCtx.editId}`, { host_path, container_path });
+                } else {
+                    r = await api.post('/api/mappings', { host_path, container_path });
+                }
+            } else {
+                const name = encodeURIComponent(mapCtx.sessionName);
+                if (mapCtx.editId) {
+                    r = await api.put(`/api/sessions/${name}/mappings/${mapCtx.editId}`, { host_path, container_path });
+                } else {
+                    r = await api.post(`/api/sessions/${name}/mappings`, { host_path, container_path });
+                }
+            }
+            if (r.error) throw new Error(r.error);
+
+            closeMappingModal();
+            const rec = r.recreated || [];
+            const failed = Array.isArray(rec) ? rec.filter(x => x.status === 'error') : [];
+            const ok = Array.isArray(rec) ? rec.filter(x => x.status === 'recreated') : [];
+            if (failed.length) {
+                toast(`Mapping saved, but ${failed.length} container(s) failed to recreate: ${failed.map(x => x.error).join('; ')}`, false);
+            } else if (ok.length) {
+                toast(`Mapping saved. ${ok.length} container${ok.length > 1 ? 's' : ''} recreated — reopening OpenCode…`, true);
+            } else {
+                toast('Mapping saved.', true);
+            }
+            refreshGlobalMappings();
+            await refreshSessions();
+            // Reopen OpenCode for each successfully recreated container
+            for (const item of ok) {
+                api.post(`/api/sessions/${encodeURIComponent(item.name)}/open`, {}).catch(() => {});
+            }
+        } catch (e) {
+            toast('Save failed: ' + e.message, false);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = mapCtx.editId ? 'Save Changes' : 'Save';
+        }
+    }
+
+    // ── Confirm dialog ────────────────────────────────────────────────────────
+    let _confirmResolve = null;
+
+    function showConfirm(title, message, warnText) {
+        return new Promise(resolve => {
+            _confirmResolve = resolve;
+            document.getElementById('confirm-title-text').textContent = title;
+            document.getElementById('confirm-msg').textContent = message;
+            document.getElementById('confirm-warn-text').textContent = warnText;
+            document.getElementById('confirm-overlay').style.display = 'flex';
+        });
+    }
+
+    function resolveConfirm(result) {
+        document.getElementById('confirm-overlay').style.display = 'none';
+        if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+    }
+
+    function confirmOverlayClick(e) {
+        if (e.target === document.getElementById('confirm-overlay')) resolveConfirm(false);
+    }
+
+    async function deleteGlobalMapping(id) {
+        if (!await showConfirm(
+            'Delete Global Mapping',
+            'This mapping will be permanently removed.',
+            'All running containers will be recreated — open OpenCode sessions will disconnect.'
+        )) return;
+        try {
+            const r = await api.del(`/api/mappings/${id}`);
+            if (r.error) throw new Error(r.error);
+            const ok = Array.isArray(r.recreated) ? r.recreated.filter(x => x.status === 'recreated') : [];
+            if (ok.length) {
+                toast(`Mapping deleted. ${ok.length} container${ok.length > 1 ? 's' : ''} recreated — reopening OpenCode…`, true);
+            } else {
+                toast('Mapping deleted.', true);
+            }
+            refreshGlobalMappings();
+            await refreshSessions();
+            for (const item of ok) {
+                api.post(`/api/sessions/${encodeURIComponent(item.name)}/open`, {}).catch(() => {});
+            }
+        } catch (e) {
+            toast('Delete failed: ' + e.message, false);
+        }
+    }
+
+    async function deleteSessionMapping(sessionName, mappingId) {
+        if (!await showConfirm(
+            'Delete Mount',
+            'This extra mount will be permanently removed.',
+            `The container "${sessionName}" will be recreated — the open OpenCode session will disconnect.`
+        )) return;
+        try {
+            const r = await api.del(`/api/sessions/${encodeURIComponent(sessionName)}/mappings/${mappingId}`);
+            if (r.error) throw new Error(r.error);
+            const ok = Array.isArray(r.recreated) ? r.recreated.filter(x => x.status === 'recreated') : [];
+            toast('Mapping deleted. Container recreated — reopening OpenCode…', true);
+            await refreshSessions();
+            for (const item of ok) {
+                api.post(`/api/sessions/${encodeURIComponent(item.name)}/open`, {}).catch(() => {});
+            }
+        } catch (e) {
+            toast('Delete failed: ' + e.message, false);
+        }
+    }
+
+    // ── New session modal ─────────────────────────────────────────────────────
     function openModal() {
         document.getElementById('modal-body').innerHTML = `
             <div class="field">
                 <label>Directory Path</label>
                 <input id="path-in" type="text" placeholder="C:\\Users\\yourname\\projects\\myapp"
                        autocomplete="off" spellcheck="false">
-                <div class="hint">Absolute path to the project directory to mount in the container.</div>
-            </div>`;
+            </div>
+            <div class="hint">Absolute path to the project directory mounted at <span class="mono-inline">/workspace</span>.</div>`;
         const btn = document.getElementById('start-btn');
         btn.style.display = ''; btn.disabled = false; btn.textContent = 'Start Session';
-        document.querySelector('.modal-footer .btn').textContent = 'Cancel';
+        document.querySelector('#overlay .modal-footer .btn').textContent = 'Cancel';
         document.getElementById('overlay').style.display = 'flex';
         setTimeout(() => document.getElementById('path-in')?.focus(), 40);
     }
 
     function closeModal() { document.getElementById('overlay').style.display = 'none'; }
-
     function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
 
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') {
+            resolveConfirm(false);
+            closeBrowseModal();
+            closeMappingModal();
+            closeModal();
+        }
         if (e.key === 'Enter' && document.getElementById('overlay').style.display === 'flex')
             if (document.getElementById('path-in')) createSession();
     });
@@ -735,9 +1417,11 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────
     refreshStatus();
+    refreshGlobalMappings();
     refreshSessions();
-    setInterval(refreshStatus,   30_000);
-    setInterval(refreshSessions,  5_000);
+    setInterval(refreshStatus,        30_000);
+    setInterval(refreshGlobalMappings, 30_000);
+    setInterval(refreshSessions,        5_000);
 </script>
 </body>
 </html>

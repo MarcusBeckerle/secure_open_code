@@ -22,7 +22,7 @@ echo [soc] Image     : %IMAGE%
 echo.
 
 REM ── Ensure Flask management server is running ─────────────────────────────
-powershell -NoProfile -Command "try{(Invoke-WebRequest 'http://localhost:5000/' -UseBasicParsing -TimeoutSec 2)|Out-Null; exit 0}catch{exit 1}" >nul 2>&1
+powershell -NoProfile -Command "try{$t=New-Object Net.Sockets.TcpClient;$r=$t.ConnectAsync('127.0.0.1',5000).Wait(2000);$t.Close();if($r){exit 0}else{exit 1}}catch{exit 1}" >nul 2>&1
 if errorlevel 1 (
     echo [soc] Management server not running. Starting it...
     if exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" (
@@ -48,43 +48,56 @@ if errorlevel 1 (
     echo.
 )
 
-REM ── Check for existing running container mapped to this directory ──────────
+REM ── Check for existing container (running or stopped) for this directory ───
 set "EXISTING="
-for /f "delims=" %%i in ('docker ps --filter "label=opencode.managed=true" --format "{{.Names}}" 2^>nul') do (
+set "EXISTING_STATUS="
+for /f "delims=" %%i in ('docker ps -a --filter "label=opencode.managed=true" --format "{{.Names}}" 2^>nul') do (
     for /f "delims=" %%j in ('docker inspect "%%i" --format "{{index .Config.Labels \"opencode.host_path\"}}" 2^>nul') do (
-        if "%%j"=="%ROC_DIR%" set "EXISTING=%%i"
+        if "%%j"=="%ROC_DIR%" (
+            set "EXISTING=%%i"
+            for /f "delims=" %%s in ('docker inspect "%%i" --format "{{.State.Status}}" 2^>nul') do set "EXISTING_STATUS=%%s"
+        )
     )
 )
 
 if not "!EXISTING!"=="" (
-    echo [soc] Reusing existing session: !EXISTING!
+    if "!EXISTING_STATUS!"=="exited" (
+        echo [soc] Restarting stopped session: !EXISTING!
+        docker start "!EXISTING!" >nul
+        if errorlevel 1 (
+            echo [soc] ERROR: Failed to restart container.
+            pause & exit /b 1
+        )
+    ) else (
+        echo [soc] Reusing existing session: !EXISTING!
+    )
+    set "CNAME=!EXISTING!"
     echo [soc] Type 'exit' in OpenCode to detach. Container stays running.
     echo.
     start "" "http://localhost:5000"
-    docker exec -it -w /workspace "!EXISTING!" opencode
-    set "CNAME=!EXISTING!"
+    docker exec -it -w /workspace "!CNAME!" opencode
     goto :done
 )
 
-REM ── Start new container ───────────────────────────────────────────────────
-set "CNAME=soc-%RANDOM%%RANDOM%"
+REM ── Create new session via Flask API (applies global + extra mappings) ─────
+set "_SOC_DIR=%ROC_DIR%"
+(echo $b = ConvertTo-Json @{path=$env:_SOC_DIR}) > "%TEMP%\_soc_session.ps1"
+(echo try {) >> "%TEMP%\_soc_session.ps1"
+(echo   $r = Invoke-RestMethod http://localhost:5000/api/sessions -Method POST -ContentType application/json -Body $b) >> "%TEMP%\_soc_session.ps1"
+(echo   Write-Output $r.name) >> "%TEMP%\_soc_session.ps1"
+(echo } catch { Write-Error $_ }) >> "%TEMP%\_soc_session.ps1"
+for /f "delims=" %%r in ('powershell -NoProfile -File "%TEMP%\_soc_session.ps1" 2^>nul') do set "CNAME=%%r"
+del "%TEMP%\_soc_session.ps1" >nul 2>&1
 
-echo [soc] Starting session : !CNAME!
-echo [soc] Type 'exit' in OpenCode to detach. Container stays running.
-echo.
-
-docker run -d ^
-    -v "%ROC_DIR%:/workspace" ^
-    --label opencode.managed=true ^
-    --label "opencode.host_path=%ROC_DIR%" ^
-    --name "!CNAME!" ^
-    %IMAGE% sleep infinity >nul
-if errorlevel 1 (
-    echo [soc] ERROR: Failed to start container.
+if "!CNAME!"=="" (
+    echo [soc] ERROR: Failed to create session. Is the management server running?
     pause
     exit /b 1
 )
 
+echo [soc] Started session  : !CNAME!
+echo [soc] Type 'exit' in OpenCode to detach. Container stays running.
+echo.
 start "" "http://localhost:5000"
 docker exec -it -w /workspace "!CNAME!" opencode
 
@@ -92,6 +105,5 @@ docker exec -it -w /workspace "!CNAME!" opencode
 echo.
 echo [soc] OpenCode exited. Session container is still running.
 echo [soc] Reconnect : docker exec -it -w /workspace !CNAME! opencode
-echo [soc] Stop      : docker stop !CNAME! ^&^& docker rm !CNAME!
 echo [soc] Web UI    : http://localhost:5000
 echo.

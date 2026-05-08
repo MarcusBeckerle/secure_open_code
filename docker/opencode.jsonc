@@ -21,7 +21,7 @@
         }
       },
       "options": {
-        "baseURL": "http://10.56.190.50:11434/v1"
+        "baseURL": "http://xq-ai.xqueue.int:11434/v1"
       }
     }
   }
