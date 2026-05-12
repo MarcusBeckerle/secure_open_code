@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     nodejs \
     npm \
+    bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Install OpenCode via official installer
@@ -16,8 +17,11 @@ RUN curl -fsSL https://opencode.ai/install | bash
 
 # Configure OpenCode with XQAI provider
 RUN mkdir -p /root/.config/opencode
-COPY opencode.jsonc /root/.config/opencode/opencode.jsonc
+
+# Install entrypoint script that copies runtime config into place
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /workspace
-
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["opencode"]
