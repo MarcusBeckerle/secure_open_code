@@ -134,7 +134,7 @@ The session list uses DOM diffing — cards update in-place without flickering. 
 ```
 SecureOpenCode/
 ├── docker/
-│   ├── Dockerfile          # Ubuntu 24.04 + OpenCode + XQAI config
+│   ├── Dockerfile          # Ubuntu 24.04 + OpenCode
 │   └── opencode.jsonc      # OpenCode provider configuration
 ├── templates/
 │   └── index.html          # Flask template — dark SPA
@@ -163,7 +163,7 @@ SecureOpenCode/
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "enabled_providers": ["xqai"],
+  "enabled_providers": ["xqai", "github-copilot"],
   "disabled_providers": ["opencode"],
   "provider": {
     "xqai": {
@@ -173,19 +173,58 @@ SecureOpenCode/
         "AiLeonFlash": { "name": "AiLeonFlash" },
         "AiLeon":      { "name": "AiLeon" }
       },
-      "options": { "baseURL": "http://10.56.190.50:11434/v1" }
+      "options": { "baseURL": "http://xq-ai.xqueue.int:11434/v1" }
     }
   }
 }
 ```
 
-To rebuild the image after changing `opencode.jsonc` or `Dockerfile`:
+The config is applied at container startup via `entrypoint.sh`, which copies `opencode.jsonc` from the mounted workspace into `/root/.config/opencode/`. No image rebuild is needed for config changes — recreate or restart the container to pick them up.
+
+To rebuild the image after changing `Dockerfile`:
 
 ```bash
 docker build -t secure-opencode docker/
 ```
 
 Or use the **Build Image** button in the web UI.
+
+---
+
+## GitHub Copilot Authentication
+
+GitHub Copilot is a built-in provider — no npm package installation required. Authentication is a one-time OAuth device flow per container. The token is stored in the state volume (`<container>-state` → `/root/.local/share/opencode/auth.json`) and survives container recreations.
+
+### Steps
+
+**1. Run the auth command in a terminal** (requires an interactive TTY — run directly in cmd/PowerShell, not via a script):
+
+```cmd
+docker exec -it <container-name> opencode auth login -p github-copilot -m "Login with GitHub Copilot"
+```
+
+Select **GitHub.com (Public)** when prompted. The CLI outputs a device code and a URL.
+![GitHub Console OAuth authorization](resources/copilot_auth.png)
+
+**2. Open the URL in a browser and authorize OpenCode:**
+
+![GitHub OAuth authorization](resources/copilot_github_auth.png)
+
+**3. Confirm authorization — the CLI polls automatically:**
+
+![Authorization confirmed](resources/copilot_github_confirmation.png)
+
+**4. GitHub Copilot models are now available in OpenCode — use `/models` to open the model selector:**
+
+![Model selection with Copilot models](resources/copilot_model_selection.png)
+
+### Re-authentication
+
+If the token expires or a new container is created from scratch (state volume deleted), repeat the steps above. To check current credentials:
+
+```cmd
+docker exec <container-name> opencode auth list
+```
 
 ---
 
