@@ -362,6 +362,37 @@
         .toast-ok  { border-left: 3px solid var(--accent); }
         .toast-err { border-left: 3px solid var(--danger); }
         @keyframes toastIn { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
+
+        /* ── Toggle switch ── */
+        .toggle { position:relative; display:inline-flex; width:36px; height:20px; flex-shrink:0; cursor:pointer; }
+        .toggle input { opacity:0; width:0; height:0; position:absolute; }
+        .toggle-track {
+            position:absolute; inset:0;
+            background:var(--surface-2); border:1px solid var(--border); border-radius:20px;
+            transition:background .18s, border-color .18s;
+        }
+        .toggle-track::before {
+            content:''; position:absolute;
+            width:14px; height:14px; top:2px; left:2px;
+            background:var(--text-dim); border-radius:50%;
+            transition:transform .18s, background .18s;
+        }
+        .toggle input:checked ~ .toggle-track { background:var(--accent-dim); border-color:transparent; }
+        .toggle input:checked ~ .toggle-track::before { transform:translateX(16px); background:#fff; }
+
+        /* ── Auth terminal ── */
+        .auth-terminal {
+            background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm);
+            padding:12px 14px; font-family:var(--mono); font-size:12px; color:var(--text);
+            white-space:pre-wrap; word-break:break-word; min-height:60px; max-height:220px;
+            overflow-y:auto; line-height:1.55;
+        }
+
+        /* ── Per-container copilot row ── */
+        .copilot-row {
+            display:flex; align-items:center; gap:8px;
+            padding:8px 15px; border-top:1px solid var(--border-sub); font-size:12px;
+        }
     </style>
 </head>
 <body>
@@ -423,6 +454,32 @@
         </div>
     </div>
 
+    <!-- ── GitHub Copilot ── -->
+    <div class="map-panel">
+        <div class="map-panel-head">
+            <div>
+                <div class="map-panel-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-2)">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                    </svg>
+                    GitHub Copilot
+                    <span class="badge badge-idle" id="copilot-badge"><span class="dot dot-x"></span>Not authenticated</span>
+                </div>
+                <div class="map-panel-sub">Authenticate once — inject credentials into any container</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+                    <span style="font-size:12px;color:var(--text-2)">Auto-inject new sessions</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="copilot-auto-toggle" onchange="toggleAutoInject(this.checked)">
+                        <span class="toggle-track"></span>
+                    </label>
+                </label>
+                <div id="copilot-auth-btn-wrap"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Sessions ── -->
     <div class="sec-header">
         <div class="sec-title">
@@ -453,6 +510,18 @@
     </div>
 
 </main>
+
+<button id="version-badge" onclick="openVersionModal()" title="Changelog" style="
+    position:fixed;bottom:14px;right:16px;
+    background:var(--surface-2);border:1px solid var(--border);
+    color:var(--text-dim);font-size:11px;font-family:var(--mono);
+    padding:3px 9px;border-radius:99px;cursor:pointer;
+    transition:color .15s,border-color .15s;z-index:50;
+    display:none
+" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--accent)'"
+   onmouseout="this.style.color='var(--text-dim)';this.style.borderColor='var(--border)'">
+    v<span id="version-label">…</span>
+</button>
 
 <!-- ── New Session Modal ── -->
 <div class="overlay" id="overlay" style="display:none" onclick="overlayClick(event)">
@@ -566,7 +635,70 @@
     </div>
 </div>
 
+<!-- ── Copilot Auth Modal ── -->
+<div class="overlay" id="copilot-overlay" style="display:none" onclick="copilotOverlayClick(event)">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+            </svg>
+            GitHub Copilot Authentication
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+                <span style="background:var(--accent-dim);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">1</span>
+                <div>
+                    <div style="font-size:13px;font-weight:500;margin-bottom:3px">Open a terminal for the auth flow</div>
+                    <div style="font-size:12px;color:var(--text-2)">A new terminal window will open. Select <em>GitHub.com (Public)</em>, then open the URL shown and enter the device code.</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start">
+                <span id="copilot-step2-num" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">2</span>
+                <div>
+                    <div style="font-size:13px;font-weight:500;margin-bottom:3px">Capture credentials</div>
+                    <div style="font-size:12px;color:var(--text-2)">Once the terminal shows success, click <strong>Capture Credentials</strong> to save them here.</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="copilot-modal-status"></div>
+
+        <div class="modal-footer">
+            <button class="btn" onclick="closeCopilotModal()">Close</button>
+            <button class="btn btn-primary" id="copilot-capture-btn" onclick="captureCopilotAuth()" disabled>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Capture Credentials
+            </button>
+            <button class="btn btn-blue" id="copilot-launch-btn" onclick="launchCopilotAuth()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+                Open Terminal
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- ── Version / Changelog Modal ── -->
+<div class="overlay" id="version-overlay" style="display:none" onclick="if(event.target===this)closeVersionModal()">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Changelog
+        </div>
+        <div id="version-modal-body" style="display:flex;flex-direction:column;gap:20px;max-height:60vh;overflow-y:auto;padding-right:4px"></div>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeVersionModal()">Close</button>
+        </div>
+    </div>
+</div>
 
 <script>
     // ── API ───────────────────────────────────────────────────────────────────
@@ -581,6 +713,7 @@
     let sessions = [];
     let globalMappings = [];
     let firstRender = true;
+    let copilotState = { has_auth: false, auto_inject: false };
 
     // Mapping modal state
     let mapCtx = { mode: 'global', editId: null, sessionName: null };
@@ -932,7 +1065,8 @@
                 <div class="extra-content">
                     ${extraItems}
                 </div>
-            </div>`;
+            </div>
+            ${copilotCardRow(s, nameJs, running)}`;
     }
 
     function cardHtml(s) {
@@ -1383,6 +1517,7 @@
             closeBrowseModal();
             closeMappingModal();
             closeModal();
+            closeCopilotModal();
         }
         if (e.key === 'Enter' && document.getElementById('overlay').style.display === 'flex')
             if (document.getElementById('path-in')) createSession();
@@ -1415,12 +1550,220 @@
             .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
+    // ── GitHub Copilot ────────────────────────────────────────────────────────
+    async function refreshCopilot() {
+        try {
+            const d = await api.get('/api/copilot');
+            copilotState = d;
+            renderCopilotPanel(d);
+        } catch { /* silent */ }
+    }
+
+    function renderCopilotPanel(d) {
+        const badge = document.getElementById('copilot-badge');
+        if (d.has_auth) {
+            badge.className = 'badge badge-ok';
+            badge.innerHTML = '<span class="dot dot-g"></span>Authenticated';
+        } else {
+            badge.className = 'badge badge-idle';
+            badge.innerHTML = '<span class="dot dot-x"></span>Not authenticated';
+        }
+
+        const toggle = document.getElementById('copilot-auto-toggle');
+        if (toggle) toggle.checked = d.auto_inject;
+
+        const wrap = document.getElementById('copilot-auth-btn-wrap');
+        if (d.has_auth) {
+            wrap.innerHTML = `<button class="btn btn-danger btn-sm" onclick="deleteCopilotAuth()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+                Remove Credentials</button>`;
+        } else {
+            wrap.innerHTML = `<button class="btn btn-sm" onclick="openCopilotModal()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+                Authenticate</button>`;
+        }
+    }
+
+    async function toggleAutoInject(checked) {
+        try {
+            await api.post('/api/copilot/settings', { auto_inject: checked });
+            copilotState.auto_inject = checked;
+        } catch (e) {
+            toast('Failed to save setting: ' + e.message, false);
+            document.getElementById('copilot-auto-toggle').checked = !checked;
+        }
+    }
+
+    async function deleteCopilotAuth() {
+        if (!confirm('Remove stored GitHub Copilot credentials?\nExisting containers keep their injected auth until you remove it manually.')) return;
+        try {
+            await api.del('/api/copilot/auth');
+            toast('Copilot credentials removed.', true);
+            refreshCopilot();
+            refreshSessions();
+        } catch (e) {
+            toast('Failed: ' + e.message, false);
+        }
+    }
+
+    function openCopilotModal() {
+        document.getElementById('copilot-modal-status').innerHTML = '';
+        const launchBtn = document.getElementById('copilot-launch-btn');
+        launchBtn.disabled = false;
+        launchBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Open Terminal`;
+        const captureBtn = document.getElementById('copilot-capture-btn');
+        captureBtn.disabled = true;
+        document.getElementById('copilot-overlay').style.display = 'flex';
+    }
+
+    function closeCopilotModal() {
+        document.getElementById('copilot-overlay').style.display = 'none';
+    }
+
+    function copilotOverlayClick(e) {
+        if (e.target === document.getElementById('copilot-overlay')) closeCopilotModal();
+    }
+
+    async function launchCopilotAuth() {
+        const launchBtn = document.getElementById('copilot-launch-btn');
+        const captureBtn = document.getElementById('copilot-capture-btn');
+        const status = document.getElementById('copilot-modal-status');
+        launchBtn.disabled = true;
+        launchBtn.textContent = 'Opening…';
+        status.innerHTML = '';
+        try {
+            const r = await api.post('/api/copilot/auth/launch', {});
+            if (r.error) throw new Error(r.error);
+            launchBtn.disabled = false;
+            launchBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Reopen Terminal`;
+            captureBtn.disabled = false;
+            status.innerHTML = `<div style="color:var(--text-2);font-size:13px;padding:6px 0">Terminal opened — complete the login, then click <strong>Capture Credentials</strong>.</div>`;
+        } catch (e) {
+            launchBtn.disabled = false;
+            launchBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Open Terminal`;
+            status.innerHTML = `<div class="err-box" style="margin-top:8px">${esc(e.message)}</div>`;
+        }
+    }
+
+    async function captureCopilotAuth() {
+        const captureBtn = document.getElementById('copilot-capture-btn');
+        const status = document.getElementById('copilot-modal-status');
+        captureBtn.disabled = true;
+        captureBtn.textContent = 'Capturing…';
+        try {
+            const r = await api.post('/api/copilot/auth/capture', {});
+            if (r.error) throw new Error(r.error);
+            status.innerHTML = `<div style="color:var(--accent);font-size:13px;font-weight:500;padding:6px 0">&#10003; Credentials captured and stored.</div>`;
+            captureBtn.textContent = 'Captured';
+            toast('GitHub Copilot credentials stored!', true);
+            refreshCopilot();
+            refreshSessions();
+            setTimeout(closeCopilotModal, 1500);
+        } catch (e) {
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Capture Credentials`;
+            status.innerHTML = `<div class="err-box" style="margin-top:8px">${esc(e.message)}</div>`;
+        }
+    }
+
+    function copilotCardRow(s, nameJs, running) {
+        const ghIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-dim);flex-shrink:0"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>`;
+        let status, action;
+        if (!copilotState.has_auth) {
+            status = `<span style="color:var(--text-dim)">No credentials stored</span>`;
+            action = '';
+        } else if (s.copilot_injected) {
+            status = `<span class="badge badge-ok" style="font-size:11px;padding:2px 8px"><span class="dot dot-g"></span>Injected</span>`;
+            action = running
+                ? `<button class="btn btn-ghost btn-xs" style="color:var(--danger);margin-left:auto" onclick="copilotRemove('${nameJs}',this)">Remove</button>`
+                : '';
+        } else {
+            status = `<span class="badge badge-idle" style="font-size:11px;padding:2px 8px"><span class="dot dot-x"></span>Not injected</span>`;
+            action = running
+                ? `<button class="btn btn-ghost btn-xs" style="color:var(--blue);margin-left:auto" onclick="copilotInject('${nameJs}',this)">Inject</button>`
+                : '';
+        }
+        return `<div class="copilot-row">${ghIcon}<span style="color:var(--text-2)">Copilot</span>${status}${action}</div>`;
+    }
+
+    async function copilotInject(name, btn) {
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.textContent = 'Injecting…';
+        try {
+            const r = await api.post(`/api/copilot/inject/${encodeURIComponent(name)}`, {});
+            if (r.error) throw new Error(r.error);
+            toast('Copilot auth injected into ' + name, true);
+            refreshSessions();
+        } catch (e) {
+            toast('Inject failed: ' + e.message, false);
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+
+    async function copilotRemove(name, btn) {
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.textContent = 'Removing…';
+        try {
+            const r = await api.del(`/api/copilot/inject/${encodeURIComponent(name)}`);
+            if (r.error) throw new Error(r.error);
+            toast('Copilot auth removed from ' + name, true);
+            refreshSessions();
+        } catch (e) {
+            toast('Remove failed: ' + e.message, false);
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+
+    // ── Version / Changelog ──────────────────────────────────────────────────
+    let _versionData = null;
+
+    async function refreshVersion() {
+        try {
+            const r = await api.get('/api/version');
+            _versionData = r;
+            document.getElementById('version-label').textContent = r.version;
+            document.getElementById('version-badge').style.display = 'inline-flex';
+        } catch (_) {}
+    }
+
+    function openVersionModal() {
+        if (!_versionData) return;
+        const body = document.getElementById('version-modal-body');
+        body.innerHTML = (_versionData.changelog || []).map((entry, i) => {
+            const isCurrent = entry.version === _versionData.version;
+            return `<div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)">v${esc(entry.version)}</span>
+                    ${isCurrent ? `<span class="badge badge-ok" style="font-size:10px;padding:1px 7px">current</span>` : ''}
+                    <span style="font-size:11px;color:var(--text-dim);margin-left:2px">${esc(entry.date)}</span>
+                </div>
+                <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+                    ${entry.changes.map(c => `<li style="font-size:12px;color:var(--text-2);line-height:1.5">${esc(c)}</li>`).join('')}
+                </ul>
+            </div>
+            ${i < (_versionData.changelog.length - 1) ? '<hr style="border:none;border-top:1px solid var(--border);margin:0">' : ''}`;
+        }).join('');
+        document.getElementById('version-overlay').style.display = 'flex';
+    }
+
+    function closeVersionModal() {
+        document.getElementById('version-overlay').style.display = 'none';
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
     refreshStatus();
+    refreshVersion();
     refreshGlobalMappings();
+    refreshCopilot();
     refreshSessions();
     setInterval(refreshStatus,        30_000);
     setInterval(refreshGlobalMappings, 30_000);
+    setInterval(refreshCopilot,        30_000);
     setInterval(refreshSessions,        5_000);
 </script>
 </body>

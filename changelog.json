@@ -1,0 +1,34 @@
+[
+  {
+    "version": "1.2.0",
+    "date": "2026-05-14",
+    "changes": [
+      "GitHub Copilot UI authentication — authenticate once from the web UI, credentials are stored server-side and can be injected into any container with one click",
+      "Auto-inject setting — new containers automatically receive stored Copilot credentials on creation",
+      "Per-session Copilot controls — inject or remove credentials from individual containers via session cards",
+      "Version badge in web UI — click the version number (bottom right) to view the full changelog"
+    ]
+  },
+  {
+    "version": "1.1.0",
+    "date": "2026-04-01",
+    "changes": [
+      "GitHub Copilot provider support — added to opencode.jsonc enabled providers",
+      "GitHub Copilot authentication guide added to documentation (manual docker exec flow)",
+      "GitHub Copilot provider and auth documentation"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-03-01",
+    "changes": [
+      "Initial stable release",
+      "Session persistence — OpenCode conversation history survives container recreations via named Docker volumes",
+      "Global and per-session bind-mount mappings with automatic container recreation",
+      "Folder browser — server-side directory picker remembers last path",
+      "DOM-diffing session list — cards update in-place without flickering",
+      "Windows CRLF fix for entrypoint.sh — LF line endings enforced via .gitattributes and Dockerfile sed strip",
+      "soc.cmd execution policy fix — -ExecutionPolicy Bypass added for fresh Windows 11 machines"
+    ]
+  }
+]

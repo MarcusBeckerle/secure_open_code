@@ -193,11 +193,31 @@ Or use the **Build Image** button in the web UI.
 
 ## GitHub Copilot Authentication
 
-GitHub Copilot is a built-in provider — no npm package installation required. Authentication is a one-time OAuth device flow per container. The token is stored in the state volume (`<container>-state` → `/root/.local/share/opencode/auth.json`) and survives container recreations.
+GitHub Copilot is a built-in provider — no npm package installation required. Authentication is a one-time OAuth device flow. The token is stored server-side and can be injected into any container automatically.
 
-### Steps
+### Via the Web UI (v1.2.0+)
 
-**1. Run the auth command in a terminal** (requires an interactive TTY — run directly in cmd/PowerShell, not via a script):
+Since v1.2.0, authentication can be managed entirely from the management UI — no manual `docker exec` required.
+
+![Copilot UI panel](resources/copilot_ui.png)
+
+**1.** Open the **GitHub Copilot** panel in the web UI and click **Authenticate**. A terminal window opens and runs the auth flow inside a temporary container.
+
+**2.** Select **GitHub.com (Public)** when prompted. The terminal shows a device code and a URL.
+
+**3.** Open the URL, enter the device code shown in the terminal, and authorize OpenCode:
+
+![GitHub device code page](resources/copilot_github_auth_code.png)
+
+**4.** Once the terminal shows success, click **Capture Credentials** in the web UI. The credentials are stored and the terminal container is cleaned up.
+
+**5.** Enable **Auto-inject** in the Copilot panel to have credentials injected into every new container automatically. For existing containers, use the **Inject** / **Remove** buttons on each session card.
+
+---
+
+### Via docker exec (manual)
+
+You can also authenticate directly inside any running container (requires an interactive TTY — run in cmd/PowerShell, not via a script):
 
 ```cmd
 docker exec -it <container-name> opencode auth login -p github-copilot -m "Login with GitHub Copilot"
@@ -206,21 +226,25 @@ docker exec -it <container-name> opencode auth login -p github-copilot -m "Login
 Select **GitHub.com (Public)** when prompted. The CLI outputs a device code and a URL.
 ![GitHub Console OAuth authorization](resources/copilot_auth.png)
 
-**2. Open the URL in a browser and authorize OpenCode:**
+**Open the URL in a browser and authorize OpenCode:**
 
 ![GitHub OAuth authorization](resources/copilot_github_auth.png)
 
-**3. Confirm authorization — the CLI polls automatically:**
+**Confirm authorization — the CLI polls automatically:**
 
 ![Authorization confirmed](resources/copilot_github_confirmation.png)
 
-**4. GitHub Copilot models are now available in OpenCode — use `/models` to open the model selector:**
+The token is stored in the container's state volume (`<container>-state` → `/root/.local/share/opencode/auth.json`) and survives container recreations for that container only.
+
+---
+
+**GitHub Copilot models are now available in OpenCode — use `/models` to open the model selector:**
 
 ![Model selection with Copilot models](resources/copilot_model_selection.png)
 
 ### Re-authentication
 
-If the token expires or a new container is created from scratch (state volume deleted), repeat the steps above. To check current credentials:
+If the token expires, repeat the UI flow above or run the manual docker exec command again. To check current credentials:
 
 ```cmd
 docker exec <container-name> opencode auth list
@@ -235,6 +259,7 @@ The management server runs on port `5000` by default (override with `PORT` env v
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/` | Web UI |
+| `GET` | `/api/version` | Current version and full changelog |
 | `GET` | `/api/status` | Docker connectivity and image state |
 | `POST` | `/api/image/build` | Build the `secure-opencode` image |
 | `GET` | `/api/browse?path=` | List subdirectories at a host path (drive list if empty) |
@@ -254,6 +279,30 @@ The management server runs on port `5000` by default (override with `PORT` env v
 | `DELETE` | `/api/mappings/<mid>` | Remove a global mapping |
 
 Sessions are identified by the Docker label `opencode.managed=true`. The `opencode.host_path` label stores the host directory path for container reuse detection. Each session gets a named Docker volume `<name>-state` mounted at `/root/.local/share/opencode` to persist OpenCode session data across container recreations.
+
+---
+
+## Changelog
+
+The full changelog is also accessible inside the web UI — click the version badge in the bottom-right corner.
+
+### v1.2.0 — 2026-05-14
+- GitHub Copilot UI authentication — authenticate once from the web UI, credentials stored server-side
+- Auto-inject setting — new containers automatically receive stored Copilot credentials
+- Per-session Copilot inject / remove controls on every session card
+- Version badge (bottom right of web UI) with clickable changelog popup
+
+### v1.1.0 — 2026-04-01
+- GitHub Copilot provider enabled in `opencode.jsonc`
+- GitHub Copilot authentication guide (manual `docker exec` flow)
+
+### v1.0.0 — 2026-03-01
+- Initial stable release
+- Session persistence via named Docker volumes
+- Global and per-session bind-mount mappings
+- Folder browser with last-path memory
+- DOM-diffing session list (no card flicker)
+- Windows CRLF fix and `-ExecutionPolicy Bypass` for fresh Windows 11 machines
 
 ---
 

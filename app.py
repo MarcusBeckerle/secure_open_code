@@ -3,12 +3,14 @@ import sys
 import uuid
 import json
 import time
+import base64
+import re
 import shutil
 import string
 import subprocess
 import docker
 import docker.errors
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, Response
 
 app = Flask(__name__)
 
@@ -18,6 +20,13 @@ LABEL_MANAGED = "opencode.managed"
 LABEL_HOST_PATH = "opencode.host_path"
 MAPPINGS_FILE = os.path.join(SCRIPT_DIR, "docker", "mappings.json")
 CONTAINER_MAPPINGS_FILE = os.path.join(SCRIPT_DIR, "docker", "container_mappings.json")
+COPILOT_AUTH_FILE       = os.path.join(SCRIPT_DIR, "docker", "copilot_auth.json")
+COPILOT_SETTINGS_FILE   = os.path.join(SCRIPT_DIR, "docker", "copilot_settings.json")
+COPILOT_CONTAINERS_FILE = os.path.join(SCRIPT_DIR, "docker", "copilot_containers.json")
+COPILOT_AUTH_PATH       = "/root/.local/share/opencode/auth.json"
+CHANGELOG_FILE          = os.path.join(SCRIPT_DIR, "changelog.json")
+APP_VERSION             = "1.2.0"
+_ANSI_RE                = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 
 def get_client():
@@ -55,6 +64,74 @@ def load_container_mappings():
 def save_container_mappings(data):
     with open(CONTAINER_MAPPINGS_FILE, "w") as f:
         json.dump(data, f, indent=2)
+
+
+# ── GitHub Copilot auth storage ───────────────────────────────────────────────
+
+def load_copilot_auth():
+    try:
+        with open(COPILOT_AUTH_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def save_copilot_auth(data):
+    with open(COPILOT_AUTH_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def load_copilot_settings():
+    try:
+        with open(COPILOT_SETTINGS_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"auto_inject": False}
+
+
+def save_copilot_settings(data):
+    with open(COPILOT_SETTINGS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def load_copilot_containers():
+    try:
+        with open(COPILOT_CONTAINERS_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_copilot_containers(data):
+    with open(COPILOT_CONTAINERS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def set_container_copilot_status(name, has_auth):
+    data = load_copilot_containers()
+    data[name] = has_auth
+    save_copilot_containers(data)
+
+
+def inject_copilot_auth(container):
+    auth = load_copilot_auth()
+    if not auth:
+        return False
+    b64 = base64.b64encode(json.dumps(auth).encode()).decode()
+    res = container.exec_run(
+        ["bash", "-c",
+         f"mkdir -p /root/.local/share/opencode && printf '%s' '{b64}' | base64 -d > {COPILOT_AUTH_PATH}"],
+    )
+    if res.exit_code == 0:
+        set_container_copilot_status(container.name, True)
+    return res.exit_code == 0
+
+
+def remove_copilot_auth_from_container(container):
+    res = container.exec_run(["rm", "-f", COPILOT_AUTH_PATH])
+    if res.exit_code == 0:
+        set_container_copilot_status(container.name, False)
+    return res.exit_code == 0
 
 
 def state_volume_name(container_name):
@@ -207,6 +284,16 @@ def api_status():
         return jsonify({"docker": False, "error": str(e)})
 
 
+@app.route("/api/version")
+def api_version():
+    try:
+        with open(CHANGELOG_FILE, encoding="utf-8") as f:
+            changelog = json.load(f)
+    except Exception:
+        changelog = []
+    return jsonify({"version": APP_VERSION, "changelog": changelog})
+
+
 @app.route("/api/image/build", methods=["POST"])
 def api_build_image():
     dockerfile_path = os.path.join(SCRIPT_DIR, "docker")
@@ -324,6 +411,7 @@ def api_get_sessions():
         c = get_client()
         containers = c.containers.list(all=True, filters={"label": f"{LABEL_MANAGED}=true"})
         cm = load_container_mappings()
+        cc = load_copilot_containers()
         sessions = []
         for container in containers:
             raw_mounts = [
@@ -340,6 +428,7 @@ def api_get_sessions():
                 "mounts": raw_mounts,
                 "created": container.attrs.get("Created", ""),
                 "extra_mappings": cm.get(container.name, []),
+                "copilot_injected": cc.get(container.name, False),
             })
         sessions.sort(key=lambda s: s["name"])
         return jsonify(sessions)
@@ -385,6 +474,13 @@ def api_create_session():
             tty=True,
             stdin_open=True,
         )
+        settings = load_copilot_settings()
+        if settings.get("auto_inject") and load_copilot_auth():
+            try:
+                inject_copilot_auth(container)
+            except Exception:
+                pass
+
         return jsonify({
             "id": container.short_id,
             "name": name,
@@ -444,6 +540,10 @@ def api_delete_session(session_id):
                 if name in cm:
                     del cm[name]
                     save_container_mappings(cm)
+                cc = load_copilot_containers()
+                if name in cc:
+                    del cc[name]
+                    save_copilot_containers(cc)
                 try:
                     get_client().volumes.get(state_volume_name(name)).remove()
                 except Exception:
@@ -571,6 +671,124 @@ def api_open_session(session_id):
         return jsonify({"error": "Session not found or not running"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ── GitHub Copilot auth ───────────────────────────────────────────────────────
+
+@app.route("/api/copilot")
+def api_copilot_status():
+    settings = load_copilot_settings()
+    return jsonify({
+        "has_auth": load_copilot_auth() is not None,
+        "auto_inject": settings.get("auto_inject", False),
+    })
+
+
+@app.route("/api/copilot/settings", methods=["POST"])
+def api_copilot_settings():
+    data = request.get_json() or {}
+    settings = load_copilot_settings()
+    if "auto_inject" in data:
+        settings["auto_inject"] = bool(data["auto_inject"])
+    save_copilot_settings(settings)
+    return jsonify(settings)
+
+
+@app.route("/api/copilot/auth", methods=["DELETE"])
+def api_copilot_delete_auth():
+    try:
+        os.remove(COPILOT_AUTH_FILE)
+    except FileNotFoundError:
+        pass
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/copilot/containers")
+def api_copilot_containers():
+    return jsonify(load_copilot_containers())
+
+
+@app.route("/api/copilot/auth/launch", methods=["POST"])
+def api_copilot_auth_launch():
+    container_name = (request.get_json() or {}).get("container", "")
+    try:
+        c = get_client()
+        if container_name:
+            container = find_container(container_name)
+            if not container:
+                return jsonify({"error": "Container not found or not running"}), 404
+        else:
+            running = c.containers.list(filters={"label": f"{LABEL_MANAGED}=true"})
+            if not running:
+                return jsonify({"error": "No running sessions — start one first"}), 400
+            container = running[0]
+
+        name = container.name
+        cmd  = f"docker exec -it {name} opencode auth login -p github-copilot"
+        if sys.platform == "win32":
+            subprocess.Popen(f'start "GitHub Copilot Auth" cmd /k {cmd}', shell=True)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["osascript", "-e",
+                              f'tell application "Terminal" to do script "{cmd}"'])
+        else:
+            for term in ["x-terminal-emulator", "gnome-terminal", "xterm", "konsole"]:
+                if shutil.which(term):
+                    subprocess.Popen([term, "-e", cmd])
+                    break
+        return jsonify({"status": "launched", "container": name})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/copilot/auth/capture", methods=["POST"])
+def api_copilot_auth_capture():
+    container_name = (request.get_json() or {}).get("container", "")
+    try:
+        c = get_client()
+        if container_name:
+            container = find_container(container_name)
+            if not container:
+                return jsonify({"error": "Container not found or not running"}), 404
+        else:
+            running = c.containers.list(filters={"label": f"{LABEL_MANAGED}=true"})
+            if not running:
+                return jsonify({"error": "No running sessions"}), 400
+            container = running[0]
+
+        cat = container.exec_run(["cat", COPILOT_AUTH_PATH])
+        if cat.exit_code != 0:
+            return jsonify({"error": "Auth file not found — complete the login in the terminal first"}), 400
+        try:
+            auth_data = json.loads(cat.output)
+            save_copilot_auth(auth_data)
+            set_container_copilot_status(container.name, True)
+            return jsonify({"status": "captured"})
+        except json.JSONDecodeError:
+            return jsonify({"error": "Auth file found but could not be parsed"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/copilot/inject/<session_id>", methods=["POST"])
+def api_copilot_inject(session_id):
+    container = find_container(session_id)
+    if not container:
+        return jsonify({"error": "Session not found or not running"}), 404
+    if not load_copilot_auth():
+        return jsonify({"error": "No Copilot credentials stored"}), 400
+    if inject_copilot_auth(container):
+        return jsonify({"status": "injected"})
+    return jsonify({"error": "Injection failed"}), 500
+
+
+@app.route("/api/copilot/inject/<session_id>", methods=["DELETE"])
+def api_copilot_remove_inject(session_id):
+    container = find_container(session_id)
+    if not container:
+        return jsonify({"error": "Session not found or not running"}), 404
+    if remove_copilot_auth_from_container(container):
+        return jsonify({"status": "removed"})
+    return jsonify({"error": "Removal failed"}), 500
 
 
 if __name__ == "__main__":
