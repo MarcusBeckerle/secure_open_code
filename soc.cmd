@@ -84,9 +84,10 @@ set "_SOC_DIR=%ROC_DIR%"
 (echo $b = ConvertTo-Json @{path=$env:_SOC_DIR}) > "%TEMP%\_soc_session.ps1"
 (echo try {) >> "%TEMP%\_soc_session.ps1"
 (echo   $r = Invoke-RestMethod http://localhost:5000/api/sessions -Method POST -ContentType application/json -Body $b) >> "%TEMP%\_soc_session.ps1"
-(echo   Write-Output $r.name) >> "%TEMP%\_soc_session.ps1"
-(echo } catch { Write-Error $_ }) >> "%TEMP%\_soc_session.ps1"
-for /f "delims=" %%r in ('powershell -NoProfile -File "%TEMP%\_soc_session.ps1" 2^>nul') do set "CNAME=%%r"
+(echo   if ^($r.name^) { Write-Output $r.name }) >> "%TEMP%\_soc_session.ps1"
+(echo   elseif ^($r.error^) { [Console]::Error.WriteLine^("[soc] Server error: " + $r.error^) }) >> "%TEMP%\_soc_session.ps1"
+(echo } catch { [Console]::Error.WriteLine^("[soc] Request failed: " + $_.Exception.Message^) }) >> "%TEMP%\_soc_session.ps1"
+for /f "delims=" %%r in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\_soc_session.ps1"') do set "CNAME=%%r"
 del "%TEMP%\_soc_session.ps1" >nul 2>&1
 
 if "!CNAME!"=="" (
