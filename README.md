@@ -315,6 +315,12 @@ Sessions are identified by the Docker label `opencode.managed=true`. The `openco
 
 The full changelog is also accessible inside the web UI — click the version badge in the bottom-right corner.
 
+### v1.3.0 — 2026-05-15
+- Bundle opencode.jsonc into the base image so every container has a sane default when the mounted workspace does not include a project config. The entrypoint now prefers a workspace-local config (workspace root → `docker/` subfolder) and falls back to the image-bundled file. Updated entrypoint logging to clarify which source is being used.
+- Web UI: add config change detection in the status bar — it highlights when the on-disk `opencode.jsonc` differs from the image-bundled version and exposes actions to either rebuild the base image and restart all managed containers or selectively restart chosen containers to pick up workspace overrides. Added a confirmation warning before recreating containers and a live rebuild progress view with streaming logs.
+- Docs: README updated with screenshots and guidance for the new config behaviour and UI flows (resources/webui_statusbar.png, resources/webui_warning.png, resources/webui_rebuilding_base_image.png).
+- Fix: ensure containers started from arbitrary host folders still have a working OpenCode configuration by bundling a default config into the image at build time.
+
 ### v1.2.0 — 2026-05-14
 - GitHub Copilot UI authentication — authenticate once from the web UI, credentials stored server-side
 - Auto-inject setting — new containers automatically receive stored Copilot credentials
