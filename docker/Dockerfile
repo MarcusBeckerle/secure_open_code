@@ -17,6 +17,11 @@ RUN curl -fsSL https://opencode.ai/install | bash
 
 # Configure OpenCode with XQAI provider
 RUN mkdir -p /root/.config/opencode
+# Include repository's default OpenCode config in the image so containers
+# have a sane default even when the workspace mounted at /workspace doesn't
+# contain an opencode.jsonc. This prevents missing config when users bind
+# different project folders as the container's workdir.
+COPY opencode.jsonc /root/.config/opencode/opencode.jsonc
 
 # Install entrypoint script that copies runtime config into place
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
