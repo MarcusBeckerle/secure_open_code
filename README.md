@@ -179,9 +179,34 @@ SecureOpenCode/
 }
 ```
 
-The config is applied at container startup via `entrypoint.sh`, which copies `opencode.jsonc` from the mounted workspace into `/root/.config/opencode/`. No image rebuild is needed for config changes — recreate or restart the container to pick them up.
+#### Config bundled in the base image
 
-To rebuild the image after changing `Dockerfile`:
+`opencode.jsonc` is copied into the base image at build time (`/root/.config/opencode/opencode.jsonc`), so every container has a working configuration even when a different project folder is mounted as the workspace.
+
+At container startup, `entrypoint.sh` checks for a workspace-local config and promotes it if present (workspace root → `docker/` subfolder → image default), so project-specific overrides are still supported without rebuilding the image.
+
+#### Config change detection — status bar
+
+The web UI status bar continuously monitors whether the on-disk `opencode.jsonc` matches the version baked into the running image:
+
+![Status bar — config changed](resources/webui_statusbar.png)
+
+When a mismatch is detected the status bar highlights the change. You can then choose to:
+
+- **Rebuild base image & restart all** — rebuilds `secure-opencode` with the updated config and recreates every managed container.
+- **Restart selected containers** — recreates only the containers you choose, picking up the workspace config override via `entrypoint.sh` without a full image rebuild.
+
+#### Recreating containers — warning & progress
+
+Before any recreation starts, a warning dialog is shown so you can confirm the operation:
+
+![Recreate warning](resources/webui_warning.png)
+
+While the base image is being rebuilt, the status bar shows a live progress indicator:
+
+![Rebuilding base image](resources/webui_rebuilding_base_image.png)
+
+To rebuild the image manually after changing `Dockerfile`:
 
 ```bash
 docker build -t secure-opencode docker/
