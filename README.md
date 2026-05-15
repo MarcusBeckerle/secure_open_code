@@ -201,7 +201,11 @@ Since v1.2.0, authentication can be managed entirely from the management UI — 
 
 ![Copilot UI panel](resources/copilot_ui.png)
 
-**1.** Open the **GitHub Copilot** panel in the web UI and click **Authenticate**. A terminal window opens and runs the auth flow inside a temporary container.
+**1.** Open the **GitHub Copilot** panel in the web UI and click **Authenticate**:
+
+![Copilot authenticate button](resources/copilot_ui_start_auth.png)
+
+A terminal window opens and runs the auth flow inside a temporary container.
 
 **2.** Select **GitHub.com (Public)** when prompted. The terminal shows a device code and a URL.
 
