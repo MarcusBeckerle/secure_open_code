@@ -35,3 +35,4 @@ docker/copilot_auth.json
 docker/copilot_settings.json
 docker/copilot_containers.json
 docker/.claude/settings.local.json
+docker/.last_build_hash

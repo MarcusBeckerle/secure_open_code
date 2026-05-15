@@ -7,6 +7,7 @@ import base64
 import re
 import shutil
 import string
+import hashlib
 import subprocess
 import docker
 import docker.errors
@@ -25,8 +26,43 @@ COPILOT_SETTINGS_FILE   = os.path.join(SCRIPT_DIR, "docker", "copilot_settings.j
 COPILOT_CONTAINERS_FILE = os.path.join(SCRIPT_DIR, "docker", "copilot_containers.json")
 COPILOT_AUTH_PATH       = "/root/.local/share/opencode/auth.json"
 CHANGELOG_FILE          = os.path.join(SCRIPT_DIR, "changelog.json")
+CONFIG_HASH_FILE        = os.path.join(SCRIPT_DIR, "docker", ".last_build_hash")
 APP_VERSION             = "1.2.0"
 _ANSI_RE                = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+
+# ── Config hash helpers ───────────────────────────────────────────────────────
+
+# Files inside docker/ that are considered "config" for the image.
+_CONFIG_WATCH = ["Dockerfile", "entrypoint.sh", "opencode.jsonc"]
+
+
+def compute_config_hash():
+    """SHA-256 of the concatenated contents of all watched config files."""
+    h = hashlib.sha256()
+    for name in _CONFIG_WATCH:
+        path = os.path.join(SCRIPT_DIR, "docker", name)
+        try:
+            with open(path, "rb") as f:
+                h.update(name.encode())
+                h.update(f.read())
+        except FileNotFoundError:
+            pass
+    return h.hexdigest()
+
+
+def load_last_build_hash():
+    try:
+        with open(CONFIG_HASH_FILE) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return None
+
+
+def save_build_hash(h):
+    os.makedirs(os.path.dirname(CONFIG_HASH_FILE), exist_ok=True)
+    with open(CONFIG_HASH_FILE, "w") as f:
+        f.write(h)
 
 
 def get_client():
@@ -294,15 +330,161 @@ def api_version():
     return jsonify({"version": APP_VERSION, "changelog": changelog})
 
 
+@app.route("/api/config/status")
+def api_config_status():
+    try:
+        current = compute_config_hash()
+        last    = load_last_build_hash()
+        # No stored hash means the image was built before this feature existed
+        # — treat as dirty so the user is prompted to rebuild.
+        changed = (last is None) or (last != current)
+        return jsonify({
+            "current_hash": current,
+            "built_hash":   last,
+            "changed":      changed,
+        })
+    except Exception as e:
+        # Never crash the UI — silently report as unchanged on unexpected errors
+        return jsonify({"current_hash": None, "built_hash": None, "changed": False, "error": str(e)})
+
+
+def _tag_old_image_if_exists(c):
+    """
+    Before a rebuild, tag the current image as secure-opencode:prev-<short_id>
+    so it retains a human-readable name instead of becoming <none>/<none>.
+    """
+    try:
+        img = c.images.get(IMAGE_NAME)
+        short_id = img.id.split(":")[-1][:12]
+        old_tag = f"prev-{short_id}"
+        img.tag(IMAGE_NAME, tag=old_tag)
+    except docker.errors.ImageNotFound:
+        pass
+    except Exception:
+        pass
+
+
 @app.route("/api/image/build", methods=["POST"])
 def api_build_image():
     dockerfile_path = os.path.join(SCRIPT_DIR, "docker")
     try:
         c = get_client()
+        _tag_old_image_if_exists(c)
         image, _ = c.images.build(path=dockerfile_path, tag=IMAGE_NAME, rm=True)
+        save_build_hash(compute_config_hash())
         return jsonify({"status": "built", "id": image.short_id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/image/build/stream", methods=["POST"])
+def api_build_image_stream():
+    """Server-Sent Events stream of Docker build output."""
+    dockerfile_path = os.path.join(SCRIPT_DIR, "docker")
+
+    def generate():
+        try:
+            c = get_client()
+            _tag_old_image_if_exists(c)
+            log_stream = c.api.build(path=dockerfile_path, tag=IMAGE_NAME, rm=True, decode=True)
+            for chunk in log_stream:
+                if "stream" in chunk:
+                    line = _ANSI_RE.sub('', chunk["stream"])
+                    data = json.dumps({"type": "log", "line": line})
+                    yield f"data: {data}\n\n"
+                elif "error" in chunk:
+                    data = json.dumps({"type": "error", "line": chunk["error"]})
+                    yield f"data: {data}\n\n"
+                    return
+            # Build succeeded — record hash
+            save_build_hash(compute_config_hash())
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'line': str(e)})}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/api/image/old", methods=["GET"])
+def api_list_old_images():
+    """List old tagged versions of the image (secure-opencode:prev-*)."""
+    try:
+        c = get_client()
+        old_images = []
+        for img in c.images.list(name=IMAGE_NAME):
+            for tag in img.tags:
+                if tag.startswith(f"{IMAGE_NAME}:prev-"):
+                    old_images.append({
+                        "id": img.short_id,
+                        "tag": tag,
+                        "size": img.attrs.get("Size", 0),
+                    })
+        return jsonify({"images": old_images})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/image/old", methods=["DELETE"])
+def api_delete_old_images():
+    """Delete all old tagged versions of the image (secure-opencode:prev-*)."""
+    try:
+        c = get_client()
+        removed = []
+        errors = []
+        for img in c.images.list(name=IMAGE_NAME):
+            for tag in img.tags:
+                if tag.startswith(f"{IMAGE_NAME}:prev-"):
+                    try:
+                        c.images.remove(tag, force=False)
+                        removed.append(tag)
+                    except Exception as e:
+                        errors.append({"tag": tag, "error": str(e)})
+        return jsonify({"removed": removed, "errors": errors})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sessions/unused", methods=["DELETE"])
+def api_delete_unused_containers():
+    """Remove stopped/exited managed containers that are no longer running."""
+    try:
+        c = get_client()
+        removed = []
+        errors = []
+        all_ctrs = c.containers.list(all=True, filters={"label": f"{LABEL_MANAGED}=true"})
+        for ctr in all_ctrs:
+            if ctr.status not in ("running", "restarting", "paused"):
+                try:
+                    ctr.remove(force=False)
+                    removed.append(ctr.name)
+                except Exception as e:
+                    errors.append({"name": ctr.name, "error": str(e)})
+        return jsonify({"removed": removed, "errors": errors})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sessions/recreate-many", methods=["POST"])
+def api_recreate_many():
+    """Recreate a specified list of containers (by name) using the current image."""
+    names = (request.get_json() or {}).get("names", [])
+    if not names:
+        return jsonify({"error": "names list required"}), 400
+    c = get_client()
+    results = []
+    for name in names:
+        try:
+            containers = c.containers.list(all=True, filters={"label": f"{LABEL_MANAGED}=true", "name": name})
+            container = next((ct for ct in containers if ct.name == name), None)
+            if not container:
+                results.append({"name": name, "status": "not_found"})
+                continue
+            recreate_container(container)
+            results.append({"name": name, "status": "recreated"})
+        except Exception as e:
+            results.append({"name": name, "status": "error", "error": str(e)})
+    return jsonify({"results": results})
 
 
 # ── Filesystem browser ────────────────────────────────────────────────────────

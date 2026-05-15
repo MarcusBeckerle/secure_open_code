@@ -406,6 +406,19 @@
         SecureOpenCode
     </div>
     <div class="nav-right">
+        <button id="b-config" onclick="openRebuildModal()" title="Config changed since last build — click to rebuild" style="
+            display:none;
+            align-items:center;gap:6px;
+            padding:4px 12px;border-radius:20px;
+            font-size:12px;font-weight:500;cursor:pointer;
+            border:1px solid rgba(248,81,73,.45);
+            background:rgba(248,81,73,.12);color:var(--danger);
+            transition:background .15s,border-color .15s;
+            white-space:nowrap;
+        " onmouseover="this.style.background='rgba(248,81,73,.22)'" onmouseout="this.style.background='rgba(248,81,73,.12)'">
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--danger);display:inline-block;animation:pulse 2s ease-in-out infinite"></span>
+            Config changed
+        </button>
         <span class="badge badge-idle" id="b-docker"><span class="dot dot-x"></span>Docker</span>
         <span class="badge badge-idle" id="b-image"><span class="dot dot-x"></span>Image</span>
     </div>
@@ -683,6 +696,108 @@
 </div>
 
 <div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- ── Rebuild Image Modal ── -->
+<div class="overlay" id="rebuild-overlay" style="display:none" onclick="if(event.target===this&&!_rebuildBusy)closeRebuildModal()">
+    <div class="modal" style="max-width:600px;width:100%">
+        <div class="modal-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--danger)">
+                <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+            </svg>
+            Rebuild Docker Image
+        </div>
+
+        <!-- Phase 0: confirm -->
+        <div id="rb-phase-confirm">
+            <p style="font-size:13px;color:var(--text-2);margin-bottom:14px">
+                The Docker image configuration has changed since the last build.
+                Rebuilding will update the image with the latest <code style="font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:1px 5px;border-radius:3px">docker/</code> files.
+            </p>
+            <div style="font-size:12px;color:var(--warn);background:rgba(210,153,34,.07);border:1px solid rgba(210,153,34,.22);border-radius:var(--radius-sm);padding:8px 11px;display:flex;gap:7px;align-items:flex-start;margin-bottom:18px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Containers will need to be restarted after the build to pick up the new image.
+            </div>
+            <div class="modal-footer" style="margin-top:0">
+                <button class="btn" onclick="closeRebuildModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="startRebuild()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+                    </svg>
+                    Build Now
+                </button>
+            </div>
+        </div>
+
+        <!-- Phase 1: building -->
+        <div id="rb-phase-building" style="display:none">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:var(--text-2)">
+                <svg id="rb-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite;flex-shrink:0">
+                    <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+                </svg>
+                Building image…
+            </div>
+            <div id="rb-log" style="
+                background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);
+                font-family:var(--mono);font-size:11.5px;color:var(--text-2);
+                white-space:pre-wrap;word-break:break-all;
+                height:260px;overflow-y:auto;padding:10px 12px;line-height:1.5;
+            "></div>
+        </div>
+
+        <!-- Phase 2: restart containers -->
+        <div id="rb-phase-restart" style="display:none">
+            <p style="font-size:13px;color:var(--text-2);margin-bottom:12px">
+                Image built successfully. Select containers to restart so they use the new image:
+            </p>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                    <input type="checkbox" id="rb-chk-all" onchange="rebuildToggleAll(this.checked)"
+                           style="accent-color:var(--accent);width:13px;height:13px">
+                    <span style="color:var(--text-2)">Select all</span>
+                </label>
+                <button class="btn btn-ghost btn-xs" onclick="rebuildToggleAll(false)">Deselect all</button>
+            </div>
+            <div id="rb-container-table" style="
+                border:1px solid var(--border);border-radius:var(--radius-sm);
+                overflow:hidden;margin-bottom:16px;max-height:240px;overflow-y:auto;
+            "></div>
+            <div id="rb-restart-status" style="font-size:12px;color:var(--text-2);min-height:18px"></div>
+
+            <!-- Old images / unused containers cleanup -->
+            <div id="rb-cleanup-section" style="display:none;margin-top:14px;padding:10px 12px;background:rgba(210,153,34,.06);border:1px solid rgba(210,153,34,.2);border-radius:var(--radius-sm);font-size:12px">
+                <div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:8px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;color:var(--warn)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <div>
+                        <span style="color:var(--text);font-weight:500">Previous image versions detected.</span>
+                        <span style="color:var(--text-2)"> Once you confirm the new image works, you can clean up the old ones to free disk space.</span>
+                    </div>
+                </div>
+                <div id="rb-old-images-list" style="margin-bottom:8px;display:flex;flex-direction:column;gap:3px"></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-ghost btn-xs" id="rb-del-old-images-btn" onclick="deleteOldImages()" style="color:var(--danger);border-color:rgba(220,50,50,.3)">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        Delete old images
+                    </button>
+                    <button class="btn btn-ghost btn-xs" id="rb-del-unused-ctrs-btn" onclick="deleteUnusedContainers()" style="color:var(--danger);border-color:rgba(220,50,50,.3)">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        Delete unused containers
+                    </button>
+                </div>
+                <div id="rb-cleanup-status" style="margin-top:6px;min-height:16px;color:var(--text-2)"></div>
+            </div>
+
+            <div class="modal-footer" style="margin-top:12px">
+                <button class="btn" onclick="closeRebuildModal()">Skip</button>
+                <button class="btn btn-primary" id="rb-restart-btn" onclick="doRestartContainers()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+                    </svg>
+                    Restart Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- ── Version / Changelog Modal ── -->
 <div class="overlay" id="version-overlay" style="display:none" onclick="if(event.target===this)closeVersionModal()">
@@ -1518,6 +1633,7 @@
             closeMappingModal();
             closeModal();
             closeCopilotModal();
+            closeRebuildModal();
         }
         if (e.key === 'Enter' && document.getElementById('overlay').style.display === 'flex')
             if (document.getElementById('path-in')) createSession();
@@ -1755,16 +1871,256 @@
         document.getElementById('version-overlay').style.display = 'none';
     }
 
+    // ── Config / Rebuild ──────────────────────────────────────────────────────
+    let _configChanged  = false;
+    let _rebuildBusy    = false;
+
+    async function refreshConfigStatus() {
+        try {
+            const r = await api.get('/api/config/status');
+            _configChanged = r.changed;
+            const btn = document.getElementById('b-config');
+            btn.style.display = _configChanged ? 'inline-flex' : 'none';
+        } catch { /* silent */ }
+    }
+
+    function openRebuildModal() {
+        _rebuildBusy = false;
+        document.getElementById('rb-phase-confirm').style.display  = '';
+        document.getElementById('rb-phase-building').style.display = 'none';
+        document.getElementById('rb-phase-restart').style.display  = 'none';
+        document.getElementById('rebuild-overlay').style.display   = 'flex';
+    }
+
+    function closeRebuildModal() {
+        if (_rebuildBusy) return;
+        document.getElementById('rebuild-overlay').style.display = 'none';
+    }
+
+    async function startRebuild() {
+        _rebuildBusy = true;
+        document.getElementById('rb-phase-confirm').style.display  = 'none';
+        document.getElementById('rb-phase-building').style.display = '';
+        const log = document.getElementById('rb-log');
+        log.textContent = '';
+
+        try {
+            const resp = await fetch('/api/image/build/stream', { method: 'POST' });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+            let success = false;
+            let errorMsg = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const lines = buf.split('\n');
+                buf = lines.pop();
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const ev = JSON.parse(line.slice(6));
+                    if (ev.type === 'log') {
+                        log.textContent += ev.line;
+                        log.scrollTop = log.scrollHeight;
+                    } else if (ev.type === 'done') {
+                        success = true;
+                    } else if (ev.type === 'error') {
+                        errorMsg = ev.line;
+                        log.textContent += '\n[ERROR] ' + ev.line;
+                        log.scrollTop = log.scrollHeight;
+                    }
+                }
+            }
+
+            _rebuildBusy = false;
+            document.getElementById('rb-spin').style.animation = 'none';
+
+            if (success) {
+                toast('Image built successfully!', true);
+                refreshStatus();
+                refreshConfigStatus();
+                // Transition to container restart phase
+                await refreshSessions();
+                const ctrs = sessions.slice(); // current session list
+                showRestartPhase(ctrs);
+            } else {
+                toast('Build failed — see log for details.', false);
+                // leave log visible, user can close
+            }
+        } catch(e) {
+            _rebuildBusy = false;
+            log.textContent += '\n[ERROR] ' + e.message;
+            toast('Build error: ' + e.message, false);
+        }
+    }
+
+    function showRestartPhase(ctrs) {
+        document.getElementById('rb-phase-building').style.display = 'none';
+        document.getElementById('rb-phase-restart').style.display  = '';
+        document.getElementById('rb-restart-status').textContent   = '';
+        document.getElementById('rb-cleanup-section').style.display = 'none';
+        document.getElementById('rb-cleanup-status').textContent = '';
+
+        // Load old image info asynchronously
+        api.get('/api/image/old').then(data => {
+            const imgs = data.images || [];
+            if (imgs.length > 0) {
+                const list = document.getElementById('rb-old-images-list');
+                list.innerHTML = imgs.map(img => {
+                    const mb = (img.size / 1024 / 1024).toFixed(0);
+                    return `<div style="font-family:var(--mono);font-size:11px;color:var(--text-2);display:flex;justify-content:space-between;gap:8px">
+                        <span style="color:var(--text)">${esc(img.tag)}</span>
+                        <span>${mb} MB</span>
+                    </div>`;
+                }).join('');
+                document.getElementById('rb-cleanup-section').style.display = '';
+            }
+        }).catch(() => {});
+
+        const table = document.getElementById('rb-container-table');
+        if (!ctrs.length) {
+            table.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--text-dim)">No containers found.</div>';
+            document.getElementById('rb-restart-btn').disabled = true;
+            return;
+        }
+
+        table.innerHTML = ctrs.map((s, i) => {
+            const ws = (s.mounts || []).find(m => m.container === '/workspace');
+            const path = ws ? ws.host : '–';
+            const running = s.status === 'running';
+            const dot = running
+                ? '<span class="dot dot-g dot-pulse" style="flex-shrink:0"></span>'
+                : '<span class="dot dot-x" style="flex-shrink:0"></span>';
+            return `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;
+                        border-bottom:1px solid var(--border-sub);cursor:pointer;font-size:12px;
+                        transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.02)'"
+                        onmouseout="this.style.background=''"
+                    >
+                        <input type="checkbox" class="rb-ctr-chk" data-name="${esc(s.name)}"
+                               ${running ? 'checked' : ''}
+                               style="accent-color:var(--accent);width:13px;height:13px;flex-shrink:0"
+                               onchange="rebuildSyncSelectAll()">
+                        ${dot}
+                        <span style="font-family:var(--mono);color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span>
+                        <span style="color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${esc(path)}</span>
+                        <span class="${running ? 'status-pill' : 'status-pill status-pill-stopped'}" style="font-size:10px;padding:1px 6px;flex-shrink:0">${esc(s.status)}</span>
+                    </label>`;
+        }).join('');
+
+        rebuildSyncSelectAll();
+    }
+
+    function rebuildToggleAll(checked) {
+        document.querySelectorAll('.rb-ctr-chk').forEach(c => c.checked = checked);
+        document.getElementById('rb-chk-all').checked = checked;
+    }
+
+    function rebuildSyncSelectAll() {
+        const all  = document.querySelectorAll('.rb-ctr-chk');
+        const chkd = document.querySelectorAll('.rb-ctr-chk:checked');
+        document.getElementById('rb-chk-all').checked = all.length > 0 && chkd.length === all.length;
+    }
+
+    async function doRestartContainers() {
+        const names = [...document.querySelectorAll('.rb-ctr-chk:checked')].map(c => c.dataset.name);
+        if (!names.length) { toast('No containers selected.', false); return; }
+
+        const btn    = document.getElementById('rb-restart-btn');
+        const status = document.getElementById('rb-restart-status');
+        btn.disabled = true;
+        btn.textContent = 'Restarting…';
+        status.textContent = '';
+
+        try {
+            const r = await api.post('/api/sessions/recreate-many', { names });
+            if (r.error) throw new Error(r.error);
+            const results = r.results || [];
+            const ok  = results.filter(x => x.status === 'recreated').length;
+            const err = results.filter(x => x.status === 'error');
+            if (err.length) {
+                status.innerHTML = `<span style="color:var(--danger)">${err.length} failed: ${esc(err.map(x=>x.error).join('; '))}</span>`;
+            } else {
+                status.innerHTML = `<span style="color:var(--accent)">&#10003; ${ok} container${ok!==1?'s':''} restarted.</span>`;
+            }
+            toast(`${ok} container${ok!==1?'s':''} restarted.`, !err.length);
+            refreshSessions();
+            setTimeout(closeRebuildModal, 1800);
+        } catch(e) {
+            toast('Restart failed: ' + e.message, false);
+            btn.disabled = false;
+            btn.textContent = 'Restart Selected';
+        }
+    }
+
+    async function deleteOldImages() {
+        const btn = document.getElementById('rb-del-old-images-btn');
+        const status = document.getElementById('rb-cleanup-status');
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+        try {
+            const r = await fetch('/api/image/old', { method: 'DELETE' }).then(x => x.json());
+            if (r.error) throw new Error(r.error);
+            const n = (r.removed || []).length;
+            if (r.errors && r.errors.length) {
+                status.innerHTML = `<span style="color:var(--danger)">${r.errors.length} error(s): ${esc(r.errors.map(e=>e.error).join('; '))}</span>`;
+                btn.disabled = false;
+                btn.textContent = 'Delete old images';
+            } else {
+                status.innerHTML = `<span style="color:var(--accent)">&#10003; ${n} old image${n!==1?'s':''} deleted.</span>`;
+                document.getElementById('rb-cleanup-section').style.display = 'none';
+                toast(`${n} old image${n!==1?'s':''} deleted.`, true);
+            }
+        } catch(e) {
+            status.innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`;
+            btn.disabled = false;
+            btn.textContent = 'Delete old images';
+        }
+    }
+
+    async function deleteUnusedContainers() {
+        const btn = document.getElementById('rb-del-unused-ctrs-btn');
+        const status = document.getElementById('rb-cleanup-status');
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+        try {
+            const r = await fetch('/api/sessions/unused', { method: 'DELETE' }).then(x => x.json());
+            if (r.error) throw new Error(r.error);
+            const n = (r.removed || []).length;
+            if (r.errors && r.errors.length) {
+                status.innerHTML = `<span style="color:var(--danger)">${r.errors.length} error(s): ${esc(r.errors.map(e=>e.error).join('; '))}</span>`;
+                btn.disabled = false;
+                btn.textContent = 'Delete unused containers';
+            } else if (n === 0) {
+                status.innerHTML = `<span style="color:var(--text-2)">No unused containers found.</span>`;
+                btn.disabled = false;
+                btn.textContent = 'Delete unused containers';
+            } else {
+                status.innerHTML = `<span style="color:var(--accent)">&#10003; ${n} unused container${n!==1?'s':''} deleted.</span>`;
+                toast(`${n} unused container${n!==1?'s':''} deleted.`, true);
+                refreshSessions();
+            }
+        } catch(e) {
+            status.innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`;
+            btn.disabled = false;
+            btn.textContent = 'Delete unused containers';
+        }
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
     refreshStatus();
     refreshVersion();
     refreshGlobalMappings();
     refreshCopilot();
     refreshSessions();
+    refreshConfigStatus();
     setInterval(refreshStatus,        30_000);
     setInterval(refreshGlobalMappings, 30_000);
     setInterval(refreshCopilot,        30_000);
     setInterval(refreshSessions,        5_000);
+    setInterval(refreshConfigStatus,   15_000);
 </script>
 </body>
 </html>
