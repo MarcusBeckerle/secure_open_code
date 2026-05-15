@@ -724,7 +724,7 @@ def api_copilot_auth_launch():
             container = running[0]
 
         name = container.name
-        cmd  = f"docker exec -it {name} opencode auth login -p github-copilot"
+        cmd  = f"docker exec -it {name} opencode auth login -p \"GitHub Copilot\""
         if sys.platform == "win32":
             subprocess.Popen(f'start "GitHub Copilot Auth" cmd /k {cmd}', shell=True)
         elif sys.platform == "darwin":
